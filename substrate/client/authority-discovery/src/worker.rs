@@ -34,8 +34,7 @@ use futures::{channel::mpsc, future, stream::Fuse, FutureExt, Stream, StreamExt}
 use addr_cache::AddrCache;
 use codec::{Decode, Encode};
 use ip_network::IpNetwork;
-use libp2p::{identity::PublicKey, multihash::Multihash};
-use multihash_codetable::{Code, MultihashDigest};
+use multihash::{Code, Multihash, MultihashDigest};
 
 use log::{debug, error, log_enabled};
 use prometheus_endpoint::{register, Counter, CounterVec, Gauge, Opts, U64};
@@ -44,7 +43,7 @@ use rand::{seq::SliceRandom, thread_rng};
 
 use sc_network::{
 	event::DhtEvent, multiaddr, KademliaKey, Multiaddr, NetworkDHTProvider, NetworkSigner,
-	NetworkStateInfo, Signature,
+	NetworkStateInfo,
 };
 use sc_network_types::PeerId;
 use sp_api::{ApiError, ProvideRuntimeApi};
