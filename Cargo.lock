@@ -15514,6 +15514,7 @@ dependencies = [
  "sc-network-sync",
  "sc-network-types",
  "sc-utils",
+ "schnellru",
  "serde",
  "serde_json",
  "smallvec",
