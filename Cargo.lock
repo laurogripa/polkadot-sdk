@@ -9549,6 +9549,9 @@ dependencies = [
 [[package]]
 name = "pallet-contracts-fixtures-common"
 version = "1.0.0"
+dependencies = [
+ "pallet-contracts-uapi",
+]
 
 [[package]]
 name = "pallet-contracts-mock-network"

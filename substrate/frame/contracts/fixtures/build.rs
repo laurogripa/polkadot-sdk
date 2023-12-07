@@ -65,6 +65,25 @@ impl Entry {
 			.expect("name is valid unicode; qed")
 	}
 
+	/// Return whether the contract has already been compiled.
+	fn is_cached(&self, out_dir: &Path) -> bool {
+		out_dir.join(self.name()).join(&self.hash).exists()
+	}
+
+	fn update_cache(&self, out_dir: &Path) -> Result<()> {
+		let cache_dir = out_dir.join(self.name());
+
+		// clear the cache dir if it exists
+		if cache_dir.exists() {
+			fs::remove_dir_all(&cache_dir)?;
+		}
+
+		// re-populate the cache dir with the new hash
+		fs::create_dir_all(&cache_dir)?;
+		fs::write(out_dir.join(&self.hash), "")?;
+		Ok(())
+	}
+
 	/// Return the name of the output wasm file.
 	fn out_wasm_filename(&self) -> String {
 		format!("{}.wasm", self.name())
@@ -87,7 +106,7 @@ fn collect_entries(contracts_dir: &Path, out_dir: &Path) -> Vec<Entry> {
 			}
 
 			let entry = Entry::new(path);
-			if out_dir.join(&entry.hash).exists() {
+			if entry.is_cached(out_dir) {
 				None
 			} else {
 				Some(entry)
@@ -182,6 +201,8 @@ fn invoke_wasm_build(current_dir: &Path) -> Result<()> {
 
 	let build_res = Command::new(env::var("CARGO")?)
 		.current_dir(current_dir)
+		.env_clear()
+		.env("PATH", env::var("PATH").unwrap())
 		.env("CARGO_ENCODED_RUSTFLAGS", encoded_rustflags)
 		.args(&["build", "--release", "--target=wasm32-unknown-unknown"])
 		.output()
@@ -193,7 +214,7 @@ fn invoke_wasm_build(current_dir: &Path) -> Result<()> {
 
 	let stderr = String::from_utf8_lossy(&build_res.stderr);
 	eprintln!("{}", stderr);
-	bail!("Failed to build contracts");
+	bail!("Failed to build wasm contracts");
 }
 
 /// Post-process the compiled wasm contracts.
@@ -269,7 +290,7 @@ fn write_output(build_dir: &Path, out_dir: &Path, entries: Vec<Entry>) -> Result
 			&out_dir.join(&entry.out_riscv_filename()),
 		)?;
 
-		fs::write(out_dir.join(&entry.hash), "")?;
+		entry.update_cache(out_dir)?;
 	}
 
 	Ok(())
