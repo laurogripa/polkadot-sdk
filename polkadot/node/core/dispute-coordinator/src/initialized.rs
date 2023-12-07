@@ -1375,9 +1375,11 @@ impl Initialized {
 						?validator_index,
 						"Voted against a candidate that was concluded valid.",
 					);
-					self.offchain_disabled_validators
-						.insert_against_valid(session, *validator_index);
 				}
+			}
+			for validator_index in new_state.votes().invalid.keys() {
+				self.offchain_disabled_validators
+					.insert_against_valid(session, *validator_index);
 			}
 			self.metrics.on_concluded_valid();
 		}
@@ -1396,8 +1398,10 @@ impl Initialized {
 						?validator_index,
 						"Voted for a candidate that was concluded invalid.",
 					);
-					self.offchain_disabled_validators.insert_for_invalid(session, *validator_index);
 				}
+			}
+			for validator_index in new_state.votes().valid.keys() {
+				self.offchain_disabled_validators.insert_for_invalid(session, *validator_index);
 			}
 			self.metrics.on_concluded_invalid();
 		}
