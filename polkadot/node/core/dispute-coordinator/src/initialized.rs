@@ -1648,6 +1648,8 @@ struct LostSessionDisputes {
 	// We separate lost disputes to prioritize "for invalid" offenders.
 	// There's no need to limit the size of these maps, as they are already limited by the
 	// number of validators in the session.
+	// We use `LruMap` ensure the iteration order prioritizes
+	// most recently disputes lost over older ones in case we reach the limit.
 	for_invalid: LruMap<ValidatorIndex, (), UnlimitedCompact>,
 	against_valid: LruMap<ValidatorIndex, (), UnlimitedCompact>,
 }
@@ -1688,6 +1690,9 @@ impl OffchainDisabledValidators {
 			.insert(validator_index, ());
 	}
 
+	/// Iterate over all validators that are offchain disabled.
+	/// The order of iteration prioritizes `for_invalid` offenders over `against_valid` offenders.
+	/// And most recently lost disputes over older ones.
 	fn iter(&self, session_index: SessionIndex) -> impl Iterator<Item = ValidatorIndex> + '_ {
 		self.per_session
 			.get(&session_index)
