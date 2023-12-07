@@ -1120,23 +1120,16 @@ impl Initialized {
 			}
 			d
 		};
-		let against_votes_all_disabled = new_state
-			.votes()
-			.invalid
-			.keys()
-			.all(|validator_index| disabled_validators.contains(validator_index));
 
 		let is_included = self.scraper.is_candidate_included(&candidate_hash);
 		let is_backed = self.scraper.is_candidate_backed(&candidate_hash);
 		let own_vote_missing = new_state.own_vote_missing();
 		let is_disputed = new_state.is_disputed();
 		let is_confirmed = new_state.is_confirmed();
-		let potential_spam = is_potential_spam(&self.scraper, &new_state, &candidate_hash);
-		// We participate only in disputes which are not potential spam.
-		// We do not participate in disputes if all votes against come from disabled validators
-		// unless the dispute is confirmed.
-		let should_not_participate = !is_confirmed && against_votes_all_disabled;
-		let allow_participation = !potential_spam && !should_not_participate;
+		let potential_spam = is_potential_spam(&self.scraper, &new_state, &candidate_hash, |v| {
+			disabled_validators.contains(v)
+		});
+		let allow_participation = !potential_spam;
 
 		gum::trace!(
 			target: LOG_TARGET,

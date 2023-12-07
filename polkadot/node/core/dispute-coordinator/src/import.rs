@@ -356,6 +356,14 @@ impl CandidateVoteState<CandidateVotes> {
 		&self.votes.candidate_receipt
 	}
 
+	/// Returns true if the all invalid votes are from disabled validators.
+	pub fn invalid_votes_all_disabled(
+		&self,
+		mut is_disabled: impl FnMut(&ValidatorIndex) -> bool,
+	) -> bool {
+		self.votes.invalid.keys().all(|i| is_disabled(i))
+	}
+
 	/// Extract `CandidateVotes` for handling import of new statements.
 	fn into_old_state(self) -> (CandidateVotes, CandidateVoteState<()>) {
 		let CandidateVoteState { votes, own_vote, dispute_status, byzantine_threshold_against } =
