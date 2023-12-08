@@ -70,6 +70,7 @@ impl Entry {
 		out_dir.join(self.name()).join(&self.hash).exists()
 	}
 
+	/// Update the cache file for the contract.
 	fn update_cache(&self, out_dir: &Path) -> Result<()> {
 		let cache_dir = out_dir.join(self.name());
 
