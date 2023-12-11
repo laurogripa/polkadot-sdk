@@ -1110,8 +1110,7 @@ impl Initialized {
 			{
 				// process disabled validators in the following order:
 				// - on-chain disabled validators
-				// - validators who voted for-invalid and lost
-				// - validators who voted against-valid and lost
+				// - prioritized order of off-chain disabled validators
 				// take at most `byzantine_threshold` validators
 				if d.len() == byzantine_threshold {
 					break
