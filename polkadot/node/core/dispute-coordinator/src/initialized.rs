@@ -1649,10 +1649,10 @@ struct OffchainDisabledValidators {
 struct LostSessionDisputes {
 	// We separate lost disputes to prioritize "for invalid" offenders. And among those, we
 	// prioritize the most backing votes. There's no need to limit the size of these sets, as they
-	// are already limited by the number of validators in the session. We use `LruMap` ensure the
-	// iteration order prioritizes most recently disputes lost over older ones in case we reach the
-	// limit.
-	backers_for_invalid: HashSet<ValidatorIndex>,
+	// are already limited by the number of validators in the session. We use `LruMap` to ensure
+	// the iteration order prioritizes most recently disputes lost over older ones in case we reach
+	// the limit.
+	backers_for_invalid: LruMap<ValidatorIndex, (), UnlimitedCompact>,
 	for_invalid: LruMap<ValidatorIndex, (), UnlimitedCompact>,
 	against_valid: LruMap<ValidatorIndex, (), UnlimitedCompact>,
 }
@@ -1660,7 +1660,7 @@ struct LostSessionDisputes {
 impl Default for LostSessionDisputes {
 	fn default() -> Self {
 		Self {
-			backers_for_invalid: HashSet::new(),
+			backers_for_invalid: LruMap::new(UnlimitedCompact),
 			for_invalid: LruMap::new(UnlimitedCompact),
 			against_valid: LruMap::new(UnlimitedCompact),
 		}
@@ -1682,7 +1682,7 @@ impl OffchainDisabledValidators {
 	) {
 		let entry = self.per_session.entry(session_index).or_default();
 		if is_backer {
-			entry.backers_for_invalid.insert(validator_index);
+			entry.backers_for_invalid.insert(validator_index, ());
 		} else {
 			entry.for_invalid.insert(validator_index, ());
 		}
@@ -1707,8 +1707,9 @@ impl OffchainDisabledValidators {
 		self.per_session.get(&session_index).into_iter().flat_map(|e| {
 			e.backers_for_invalid
 				.iter()
-				.chain(e.for_invalid.iter().chain(e.against_valid.iter()).map(|(k, _)| k))
-				.map(|&validator_index| validator_index)
+				.chain(e.for_invalid.iter())
+				.chain(e.against_valid.iter())
+				.map(|(i, _)| *i)
 		})
 	}
 }
