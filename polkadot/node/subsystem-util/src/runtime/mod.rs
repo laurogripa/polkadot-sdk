@@ -73,6 +73,11 @@ pub struct RuntimeInfo {
 	/// overseer seems sensible.
 	session_index_cache: LruMap<Hash, SessionIndex>,
 
+	/// In the happy case, we do not query disabled validators at all. In the worst case, we can
+	/// query it order of `n_cores` times `n_validators` per block, so caching it here seems
+	/// sensible.
+	disabled_validators_cache: LruMap<Hash, Vec<ValidatorIndex>>,
+
 	/// Look up cached sessions by `SessionIndex`.
 	session_info_cache: LruMap<SessionIndex, ExtendedSessionInfo>,
 
@@ -125,6 +130,7 @@ impl RuntimeInfo {
 		Self {
 			session_index_cache: LruMap::new(ByLength::new(cfg.session_cache_lru_size.max(10))),
 			session_info_cache: LruMap::new(ByLength::new(cfg.session_cache_lru_size)),
+			disabled_validators_cache: LruMap::new(ByLength::new(100)),
 			pinned_blocks: LruMap::new(ByLength::new(cfg.session_cache_lru_size)),
 			keystore: cfg.keystore,
 		}
@@ -185,10 +191,17 @@ impl RuntimeInfo {
 	where
 		Sender: SubsystemSender<RuntimeApiMessage>,
 	{
-		let disabled_validators = get_disabled_validators_with_fallback(sender, relay_parent)
-			.await
-			.map_err(|_| JfyiError::NoSuchSession(0))?; // TODO (@ordian): make this method return runtime error
-		Ok(disabled_validators)
+		match self.disabled_validators_cache.get(&relay_parent).cloned() {
+			Some(result) => Ok(result),
+			None => {
+				let disabled_validators =
+					get_disabled_validators_with_fallback(sender, relay_parent)
+						.await
+						.map_err(|_| JfyiError::NoSuchSession(0))?; // TODO (@ordian): make this method return runtime error
+				self.disabled_validators_cache.insert(relay_parent, disabled_validators.clone());
+				Ok(disabled_validators)
+			},
+		}
 	}
 
 	/// Get `ExtendedSessionInfo` by session index.
