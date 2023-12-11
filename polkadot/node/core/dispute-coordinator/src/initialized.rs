@@ -1639,16 +1639,20 @@ fn determine_undisputed_chain(
 
 #[derive(Default)]
 struct OffchainDisabledValidators {
+	// Ideally, we want to use the top `byzantine_threshold` offenders here based on the amount of
+	// stake slashed. However, given that slashing might be applied with a delay, we want to have
+	// some list of offenders as soon as disputes conclude offchain. This list only approximates
+	// the top offenders and only accounts for lost disputes. But that should be good enough to
+	// prevent spam attacks.
 	per_session: BTreeMap<SessionIndex, LostSessionDisputes>,
 }
 
 struct LostSessionDisputes {
-	// We separate lost disputes to prioritize "for invalid" offenders.
-	// And among those, we prioritize the most backing votes.
-	// There's no need to limit the size of these sets, as they are already limited by the
-	// number of validators in the session.
-	// We use `LruMap` ensure the iteration order prioritizes
-	// most recently disputes lost over older ones in case we reach the limit.
+	// We separate lost disputes to prioritize "for invalid" offenders. And among those, we
+	// prioritize the most backing votes. There's no need to limit the size of these sets, as they
+	// are already limited by the number of validators in the session. We use `LruMap` ensure the
+	// iteration order prioritizes most recently disputes lost over older ones in case we reach the
+	// limit.
 	backers_for_invalid: HashSet<ValidatorIndex>,
 	for_invalid: LruMap<ValidatorIndex, (), UnlimitedCompact>,
 	against_valid: LruMap<ValidatorIndex, (), UnlimitedCompact>,
