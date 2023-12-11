@@ -195,9 +195,7 @@ impl RuntimeInfo {
 			Some(result) => Ok(result),
 			None => {
 				let disabled_validators =
-					get_disabled_validators_with_fallback(sender, relay_parent)
-						.await
-						.map_err(|_| JfyiError::NoSuchSession(0))?; // TODO (@ordian): make this method return runtime error
+					get_disabled_validators_with_fallback(sender, relay_parent).await?;
 				self.disabled_validators_cache.insert(relay_parent, disabled_validators.clone());
 				Ok(disabled_validators)
 			},

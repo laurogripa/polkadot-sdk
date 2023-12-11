@@ -465,7 +465,16 @@ impl Validator {
 		// TODO: https://github.com/paritytech/polkadot-sdk/issues/1940
 		// When `DisabledValidators` is released remove this and add a
 		// `request_disabled_validators` call here
-		let disabled_validators = get_disabled_validators_with_fallback(sender, parent).await?;
+		let disabled_validators = match get_disabled_validators_with_fallback(sender, parent).await
+		{
+			Ok(ok) => ok,
+			Err(runtime::Error::RuntimeRequestCanceled(oneshot)) =>
+				return Err(Error::Oneshot(oneshot)),
+			Err(runtime::Error::RuntimeRequest(api)) => return Err(Error::RuntimeApi(api)),
+			Err(runtime::Error::NoExecutorParams(_) | runtime::Error::NoSuchSession(_)) => {
+				unreachable!("these types of errors are never returned here; qed");
+			},
+		};
 
 		Self::construct(&validators, &disabled_validators, signing_context, keystore)
 	}

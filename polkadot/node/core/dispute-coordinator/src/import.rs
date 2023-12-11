@@ -71,7 +71,10 @@ impl<'a> CandidateEnvironment<'a> {
 		let disabled_indices = runtime_info
 			.get_disabled_validators(ctx.sender(), relay_parent)
 			.await
-			.unwrap_or_default() // TODO (@ordian): log error
+			.inspect_err(
+				|err| gum::info!(target: LOG_TARGET, ?err, "Failed to get disabled validators"),
+			)
+			.unwrap_or_default()
 			.into_iter()
 			.collect();
 
