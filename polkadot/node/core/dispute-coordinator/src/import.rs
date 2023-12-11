@@ -356,7 +356,7 @@ impl CandidateVoteState<CandidateVotes> {
 		&self.votes.candidate_receipt
 	}
 
-	/// Returns true if the all invalid votes are from disabled validators.
+	/// Returns true if all the invalid votes are from disabled validators.
 	pub fn invalid_votes_all_disabled(
 		&self,
 		mut is_disabled: impl FnMut(&ValidatorIndex) -> bool,

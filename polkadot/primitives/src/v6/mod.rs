@@ -1304,10 +1304,7 @@ impl DisputeStatement {
 	/// Statement is backing statement.
 	pub fn is_backing(&self) -> bool {
 		match *self {
-			Self::Valid(ValidDisputeStatementKind::BackingSeconded(_)) |
-			Self::Valid(ValidDisputeStatementKind::BackingValid(_)) => true,
-			Self::Valid(ValidDisputeStatementKind::Explicit) |
-			Self::Valid(ValidDisputeStatementKind::ApprovalChecking) |
+			Self::Valid(s) => s.is_backing(),
 			Self::Invalid(_) => false,
 		}
 	}
@@ -1328,6 +1325,18 @@ pub enum ValidDisputeStatementKind {
 	/// An approval vote from the approval checking phase.
 	#[codec(index = 3)]
 	ApprovalChecking,
+}
+
+impl ValidDisputeStatementKind {
+	/// Whether the statement is from the backing phase.
+	pub fn is_backing(&self) -> bool {
+		match *self {
+			ValidDisputeStatementKind::BackingSeconded(_) |
+			ValidDisputeStatementKind::BackingValid(_) => true,
+			ValidDisputeStatementKind::Explicit | ValidDisputeStatementKind::ApprovalChecking =>
+				false,
+		}
+	}
 }
 
 /// Different kinds of statements of invalidity on a candidate.

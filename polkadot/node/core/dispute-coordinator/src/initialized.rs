@@ -1393,8 +1393,13 @@ impl Initialized {
 					);
 				}
 			}
-			for validator_index in new_state.votes().valid.keys() {
-				self.offchain_disabled_validators.insert_for_invalid(session, *validator_index);
+			for (validator_index, (kind, _sig)) in new_state.votes().valid.raw() {
+				let is_backer = kind.is_backing();
+				self.offchain_disabled_validators.insert_for_invalid(
+					session,
+					*validator_index,
+					is_backer,
+				);
 			}
 			self.metrics.on_concluded_invalid();
 		}
@@ -1639,10 +1644,12 @@ struct OffchainDisabledValidators {
 
 struct LostSessionDisputes {
 	// We separate lost disputes to prioritize "for invalid" offenders.
-	// There's no need to limit the size of these maps, as they are already limited by the
+	// And among those, we prioritize the most backing votes.
+	// There's no need to limit the size of these sets, as they are already limited by the
 	// number of validators in the session.
 	// We use `LruMap` ensure the iteration order prioritizes
 	// most recently disputes lost over older ones in case we reach the limit.
+	backers_for_invalid: HashSet<ValidatorIndex>,
 	for_invalid: LruMap<ValidatorIndex, (), UnlimitedCompact>,
 	against_valid: LruMap<ValidatorIndex, (), UnlimitedCompact>,
 }
@@ -1650,6 +1657,7 @@ struct LostSessionDisputes {
 impl Default for LostSessionDisputes {
 	fn default() -> Self {
 		Self {
+			backers_for_invalid: HashSet::new(),
 			for_invalid: LruMap::new(UnlimitedCompact),
 			against_valid: LruMap::new(UnlimitedCompact),
 		}
@@ -1663,12 +1671,18 @@ impl OffchainDisabledValidators {
 		std::mem::swap(&mut relevant, &mut self.per_session);
 	}
 
-	fn insert_for_invalid(&mut self, session_index: SessionIndex, validator_index: ValidatorIndex) {
-		self.per_session
-			.entry(session_index)
-			.or_default()
-			.for_invalid
-			.insert(validator_index, ());
+	fn insert_for_invalid(
+		&mut self,
+		session_index: SessionIndex,
+		validator_index: ValidatorIndex,
+		is_backer: bool,
+	) {
+		let entry = self.per_session.entry(session_index).or_default();
+		if is_backer {
+			entry.backers_for_invalid.insert(validator_index);
+		} else {
+			entry.for_invalid.insert(validator_index, ());
+		}
 	}
 
 	fn insert_against_valid(
@@ -1684,12 +1698,14 @@ impl OffchainDisabledValidators {
 	}
 
 	/// Iterate over all validators that are offchain disabled.
-	/// The order of iteration prioritizes `for_invalid` offenders over `against_valid` offenders.
-	/// And most recently lost disputes over older ones.
+	/// The order of iteration prioritizes `for_invalid` offenders (and backers among those) over
+	/// `against_valid` offenders. And most recently lost disputes over older ones.
 	fn iter(&self, session_index: SessionIndex) -> impl Iterator<Item = ValidatorIndex> + '_ {
-		self.per_session
-			.get(&session_index)
-			.into_iter()
-			.flat_map(|e| e.for_invalid.iter().chain(e.against_valid.iter()).map(|(k, _)| *k))
+		self.per_session.get(&session_index).into_iter().flat_map(|e| {
+			e.backers_for_invalid
+				.iter()
+				.chain(e.for_invalid.iter().chain(e.against_valid.iter()).map(|(k, _)| k))
+				.map(|&validator_index| validator_index)
+		})
 	}
 }
