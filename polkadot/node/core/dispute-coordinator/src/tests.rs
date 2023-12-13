@@ -2860,7 +2860,7 @@ fn participation_with_offchain_disabling() {
 			assert!(virtual_overseer.recv().timeout(TEST_TIMEOUT).await.is_none());
 
 			// now import enough votes for dispute confirmation
-			// enough though 2 of these votes are from (on chain) disabled validators
+			// even though 2 of these votes are from (on chain) disabled validators
 			let mut statements = Vec::new();
 			for i in vec![3, 4, 5] {
 				let vote = test_state.issue_explicit_statement_with_index(

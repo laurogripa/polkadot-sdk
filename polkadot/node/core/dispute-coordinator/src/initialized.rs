@@ -1650,7 +1650,7 @@ struct OffchainDisabledValidators {
 
 struct LostSessionDisputes {
 	// We separate lost disputes to prioritize "for invalid" offenders. And among those, we
-	// prioritize the most backing votes. There's no need to limit the size of these sets, as they
+	// prioritize backing votes the most. There's no need to limit the size of these sets, as they
 	// are already limited by the number of validators in the session. We use `LruMap` to ensure
 	// the iteration order prioritizes most recently disputes lost over older ones in case we reach
 	// the limit.
