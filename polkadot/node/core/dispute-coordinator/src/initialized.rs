@@ -985,11 +985,13 @@ impl Initialized {
 			Some(env) => env,
 		};
 
+		let n_validators = env.validators().len();
+
 		gum::trace!(
 			target: LOG_TARGET,
 			?candidate_hash,
 			?session,
-			num_validators = ?env.session_info().validators.len(),
+			?n_validators,
 			"Number of validators"
 		);
 
@@ -1087,8 +1089,6 @@ impl Initialized {
 			}
 		};
 
-		let n_validators = env.validators().len();
-
 		gum::trace!(
 			target: LOG_TARGET,
 			?candidate_hash,
@@ -1096,6 +1096,7 @@ impl Initialized {
 			?n_validators,
 			"Import result ready"
 		);
+
 		let new_state = import_result.new_state();
 
 		let byzantine_threshold = polkadot_primitives::byzantine_threshold(n_validators);
@@ -1138,6 +1139,7 @@ impl Initialized {
 			?candidate_hash,
 			confirmed = ?new_state.is_confirmed(),
 			has_invalid_voters = ?!import_result.new_invalid_voters().is_empty(),
+			n_disabled_validators = ?disabled_validators.len(),
 			"Is spam?"
 		);
 

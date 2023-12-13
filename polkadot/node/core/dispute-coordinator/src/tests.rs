@@ -256,7 +256,7 @@ impl TestState {
 		session: SessionIndex,
 		block_number: BlockNumber,
 		candidate_events: Vec<CandidateEvent>,
-	) {
+	) -> Hash {
 		assert!(block_number > 0);
 
 		let block_header = Header {
@@ -281,6 +281,8 @@ impl TestState {
 
 		self.handle_sync_queries(virtual_overseer, block_hash, session, candidate_events)
 			.await;
+
+		block_hash
 	}
 
 	/// Returns any sent `DisputeMessage`s.
@@ -631,13 +633,17 @@ async fn participation_with_distribution(
 }
 
 fn make_valid_candidate_receipt() -> CandidateReceipt {
-	let mut candidate_receipt = dummy_candidate_receipt_bad_sig(dummy_hash(), dummy_hash());
-	candidate_receipt.commitments_hash = CandidateCommitments::default().hash();
-	candidate_receipt
+	make_another_valid_candidate_receipt(dummy_hash())
 }
 
 fn make_invalid_candidate_receipt() -> CandidateReceipt {
 	dummy_candidate_receipt_bad_sig(Default::default(), Some(Default::default()))
+}
+
+fn make_another_valid_candidate_receipt(relay_parent: Hash) -> CandidateReceipt {
+	let mut candidate_receipt = dummy_candidate_receipt_bad_sig(relay_parent, dummy_hash());
+	candidate_receipt.commitments_hash = CandidateCommitments::default().hash();
+	candidate_receipt
 }
 
 // Generate a `CandidateBacked` event from a `CandidateReceipt`. The rest is dummy data.
@@ -2578,7 +2584,7 @@ fn issue_local_statement_does_cause_distribution_but_not_duplicate_participation
 }
 
 #[test]
-fn participation_with_disabled_validator() {
+fn participation_with_onchain_disabling() {
 	test_harness(|mut test_state, mut virtual_overseer| {
 		Box::pin(async move {
 			let session = 1;
@@ -2686,6 +2692,226 @@ fn participation_with_disabled_validator() {
 					.send(FromOrchestra::Communication {
 						msg: DisputeCoordinatorMessage::QueryCandidateVotes(
 							vec![(session, candidate_hash)],
+							tx,
+						),
+					})
+					.await;
+
+				let (_, _, votes) = rx.await.unwrap().get(0).unwrap().clone();
+				assert_eq!(votes.valid.raw().len(), 5); // 5 => we have participated
+				assert_eq!(votes.invalid.len(), 1);
+			}
+
+			virtual_overseer.send(FromOrchestra::Signal(OverseerSignal::Conclude)).await;
+			assert!(virtual_overseer.try_recv().await.is_none());
+
+			test_state
+		})
+	});
+}
+
+#[test]
+fn participation_with_offchain_disabling() {
+	test_harness(|mut test_state, mut virtual_overseer| {
+		Box::pin(async move {
+			let session = 1;
+
+			test_state.handle_resume_sync(&mut virtual_overseer, session).await;
+
+			let candidate_receipt = make_valid_candidate_receipt();
+			let candidate_hash = candidate_receipt.hash();
+			let events = vec![make_candidate_included_event(candidate_receipt.clone())];
+
+			let block_hash = test_state
+				.activate_leaf_at_session(&mut virtual_overseer, session, 3, events)
+				.await;
+
+			let another_candidate_receipt = make_another_valid_candidate_receipt(block_hash);
+			let another_candidate_hash = another_candidate_receipt.hash();
+			let another_events =
+				vec![make_candidate_included_event(another_candidate_receipt.clone())];
+
+			test_state
+				.activate_leaf_at_session(&mut virtual_overseer, session, 4, another_events)
+				.await;
+
+			// import enough votes for supermajority to conclude the dispute
+			let mut statements = Vec::new();
+			let (valid_vote, invalid_vote) = generate_opposing_votes_pair(
+				&test_state,
+				ValidatorIndex(1),
+				ValidatorIndex(2),
+				candidate_hash,
+				session,
+				VoteType::Backing,
+			)
+			.await;
+
+			statements.push((valid_vote, ValidatorIndex(1)));
+			statements.push((invalid_vote, ValidatorIndex(2)));
+
+			for i in vec![3, 4, 5, 6, 7, 8] {
+				let vote = test_state.issue_explicit_statement_with_index(
+					ValidatorIndex(i),
+					candidate_hash,
+					session,
+					true,
+				);
+
+				statements.push((vote, ValidatorIndex(i as _)));
+			}
+
+			let (pending_confirmation, confirmation_rx) = oneshot::channel();
+			let pending_confirmation = Some(pending_confirmation);
+
+			virtual_overseer
+				.send(FromOrchestra::Communication {
+					msg: DisputeCoordinatorMessage::ImportStatements {
+						candidate_receipt: candidate_receipt.clone(),
+						session,
+						statements,
+						pending_confirmation,
+					},
+				})
+				.await;
+
+			handle_disabled_validators_queries(&mut virtual_overseer, vec![]).await;
+			handle_approval_vote_request(&mut virtual_overseer, &candidate_hash, HashMap::new())
+				.await;
+
+			assert_eq!(confirmation_rx.await, Ok(ImportStatementsResult::ValidImport));
+
+			participation_with_distribution(
+				&mut virtual_overseer,
+				&candidate_hash,
+				candidate_receipt.commitments_hash,
+			)
+			.await;
+
+			{
+				let (tx, rx) = oneshot::channel();
+				virtual_overseer
+					.send(FromOrchestra::Communication {
+						msg: DisputeCoordinatorMessage::ActiveDisputes(tx),
+					})
+					.await;
+
+				assert_eq!(rx.await.unwrap().len(), 1);
+
+				// check if we have participated (cast a vote)
+				let (tx, rx) = oneshot::channel();
+				virtual_overseer
+					.send(FromOrchestra::Communication {
+						msg: DisputeCoordinatorMessage::QueryCandidateVotes(
+							vec![(session, candidate_hash)],
+							tx,
+						),
+					})
+					.await;
+
+				let (_, _, votes) = rx.await.unwrap().get(0).unwrap().clone();
+				assert_eq!(votes.valid.raw().len(), 8); // 8 => we have participated
+				assert_eq!(votes.invalid.len(), 1);
+			}
+
+			// now create another dispute
+			// Validator 2 should be disabled offchain now
+
+			let mut statements = Vec::new();
+			let (valid_vote, invalid_vote) = generate_opposing_votes_pair(
+				&test_state,
+				ValidatorIndex(1),
+				ValidatorIndex(2),
+				another_candidate_hash,
+				session,
+				VoteType::Backing,
+			)
+			.await;
+
+			statements.push((valid_vote, ValidatorIndex(1)));
+			statements.push((invalid_vote, ValidatorIndex(2)));
+
+			let (pending_confirmation, confirmation_rx) = oneshot::channel();
+			let pending_confirmation = Some(pending_confirmation);
+
+			virtual_overseer
+				.send(FromOrchestra::Communication {
+					msg: DisputeCoordinatorMessage::ImportStatements {
+						candidate_receipt: another_candidate_receipt.clone(),
+						session,
+						statements,
+						pending_confirmation,
+					},
+				})
+				.await;
+
+			// let's disable validators 3, 4 on chain, but this should not affect this import
+			let disabled_validators = vec![ValidatorIndex(3), ValidatorIndex(4)];
+			handle_disabled_validators_queries(&mut virtual_overseer, disabled_validators).await;
+			handle_approval_vote_request(
+				&mut virtual_overseer,
+				&another_candidate_hash,
+				HashMap::new(),
+			)
+			.await;
+			assert_eq!(confirmation_rx.await, Ok(ImportStatementsResult::ValidImport));
+
+			// we should not participate since due to offchain disabling
+			assert!(virtual_overseer.recv().timeout(TEST_TIMEOUT).await.is_none());
+
+			// now import enough votes for dispute confirmation
+			// enough though 2 of these votes are from (on chain) disabled validators
+			let mut statements = Vec::new();
+			for i in vec![3, 4, 5] {
+				let vote = test_state.issue_explicit_statement_with_index(
+					ValidatorIndex(i),
+					another_candidate_hash,
+					session,
+					true,
+				);
+
+				statements.push((vote, ValidatorIndex(i as _)));
+			}
+
+			let (pending_confirmation, confirmation_rx) = oneshot::channel();
+			let pending_confirmation = Some(pending_confirmation);
+
+			virtual_overseer
+				.send(FromOrchestra::Communication {
+					msg: DisputeCoordinatorMessage::ImportStatements {
+						candidate_receipt: another_candidate_receipt.clone(),
+						session,
+						statements,
+						pending_confirmation,
+					},
+				})
+				.await;
+
+			assert_eq!(confirmation_rx.await, Ok(ImportStatementsResult::ValidImport));
+
+			participation_with_distribution(
+				&mut virtual_overseer,
+				&another_candidate_hash,
+				another_candidate_receipt.commitments_hash,
+			)
+			.await;
+
+			{
+				let (tx, rx) = oneshot::channel();
+				virtual_overseer
+					.send(FromOrchestra::Communication {
+						msg: DisputeCoordinatorMessage::ActiveDisputes(tx),
+					})
+					.await;
+
+				assert_eq!(rx.await.unwrap().len(), 2);
+
+				// check if we have participated (cast a vote)
+				let (tx, rx) = oneshot::channel();
+				virtual_overseer
+					.send(FromOrchestra::Communication {
+						msg: DisputeCoordinatorMessage::QueryCandidateVotes(
+							vec![(session, another_candidate_hash)],
 							tx,
 						),
 					})
