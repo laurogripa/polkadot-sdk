@@ -2578,6 +2578,69 @@ fn issue_local_statement_does_cause_distribution_but_not_duplicate_participation
 }
 
 #[test]
+fn no_participation_with_disabled_validator() {
+	test_harness(|mut test_state, mut virtual_overseer| {
+		Box::pin(async move {
+			let session = 1;
+
+			test_state.handle_resume_sync(&mut virtual_overseer, session).await;
+
+			let candidate_receipt = make_valid_candidate_receipt();
+			let candidate_hash = candidate_receipt.hash();
+			let events = vec![make_candidate_included_event(candidate_receipt.clone())];
+
+			test_state
+				.activate_leaf_at_session(&mut virtual_overseer, session, 1, events)
+				.await;
+
+			let backer_index = ValidatorIndex(1);
+			let disabled_index = ValidatorIndex(2);
+
+			let (valid_vote, invalid_vote) = generate_opposing_votes_pair(
+				&test_state,
+				backer_index,
+				disabled_index,
+				candidate_hash,
+				session,
+				VoteType::Backing,
+			)
+			.await;
+
+			let (pending_confirmation, confirmation_rx) = oneshot::channel();
+			let pending_confirmation = Some(pending_confirmation);
+
+			virtual_overseer
+				.send(FromOrchestra::Communication {
+					msg: DisputeCoordinatorMessage::ImportStatements {
+						candidate_receipt,
+						session,
+						statements: vec![
+							(valid_vote, backer_index),
+							(invalid_vote, disabled_index),
+						],
+						pending_confirmation,
+					},
+				})
+				.await;
+
+			handle_disabled_validators_queries(&mut virtual_overseer, vec![disabled_index]).await;
+			handle_approval_vote_request(&mut virtual_overseer, &candidate_hash, HashMap::new())
+				.await;
+
+			assert_eq!(confirmation_rx.await, Ok(ImportStatementsResult::ValidImport));
+
+			// we should not participate due to disabled indices on chain
+			assert!(virtual_overseer.recv().timeout(TEST_TIMEOUT).await.is_none());
+
+			virtual_overseer.send(FromOrchestra::Signal(OverseerSignal::Conclude)).await;
+			assert!(virtual_overseer.try_recv().await.is_none());
+
+			test_state
+		})
+	});
+}
+
+#[test]
 fn own_approval_vote_gets_distributed_on_dispute() {
 	test_harness(|mut test_state, mut virtual_overseer| {
 		Box::pin(async move {
