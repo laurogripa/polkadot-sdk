@@ -1101,6 +1101,10 @@ impl Initialized {
 
 		let byzantine_threshold = polkadot_primitives::byzantine_threshold(n_validators);
 		// combine on-chain with off-chain disabled validators
+		// process disabled validators in the following order:
+		// - on-chain disabled validators
+		// - prioritized order of off-chain disabled validators
+		// deduplicate the list and take at most `byzantine_threshold` validators
 		let disabled_validators = {
 			let mut d: HashSet<ValidatorIndex> = HashSet::new();
 			for v in env
@@ -1109,10 +1113,6 @@ impl Initialized {
 				.cloned()
 				.chain(self.offchain_disabled_validators.iter(session))
 			{
-				// process disabled validators in the following order:
-				// - on-chain disabled validators
-				// - prioritized order of off-chain disabled validators
-				// take at most `byzantine_threshold` validators
 				if d.len() == byzantine_threshold {
 					break
 				}
@@ -1705,6 +1705,7 @@ impl OffchainDisabledValidators {
 	/// Iterate over all validators that are offchain disabled.
 	/// The order of iteration prioritizes `for_invalid` offenders (and backers among those) over
 	/// `against_valid` offenders. And most recently lost disputes over older ones.
+	/// NOTE: the iterator might contain duplicates.
 	fn iter(&self, session_index: SessionIndex) -> impl Iterator<Item = ValidatorIndex> + '_ {
 		self.per_session.get(&session_index).into_iter().flat_map(|e| {
 			e.backers_for_invalid

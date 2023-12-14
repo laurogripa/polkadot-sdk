@@ -324,18 +324,20 @@ malicious, so spam disk usage is limited to `2*vote_size*n/3*NUM_SPAM_SLOTS`, wi
 
 ### Disabling
 
-Once a validator has committed an offence (e.g. losing a dispute), it is considered disabled for the rest of the era. We need to account for disabled validators in dispute participation for two reasons:
-1. Security: If a validator is slashed 100% at the beginning of an era, it should not have free tries until it is removed from the validator set.
-1. Spam protection: disabled validators should not be able to spam the network with disputes.
-
-In addition to using the on-chain state of disabled validators, we also keep track of validators who lost a dispute off-chain. The reason for this is a dispute can be raised for a candidate in a previous era, which means that a validator that
-is going to be slashed for it might not even be in the current active set. That means it can't be disabled on-chain. We need a way to prevent someone from disputing all valid candidates in the previous era. We do this by keeping track of the validators who lost a dispute in the past few sessions and use that list in addition to the on-chain disabled validators state.
+Once a validator has committed an offence (e.g. losing a dispute), it is considered disabled for the rest of the era.
+In addition to using the on-chain state of disabled validators, we also keep track of validators who lost a dispute
+off-chain. The reason for this is a dispute can be raised for a candidate in a previous era, which means that a
+validator that is going to be slashed for it might not even be in the current active set. That means it can't be
+disabled on-chain. We need a way to prevent someone from disputing all valid candidates in the previous era. We do this
+by keeping track of the validators who lost a dispute in the past few sessions and use that list in addition to the
+on-chain disabled validators state. In addition to past session misbehavior, this also heps in case a slash is delayed.
 
 When we receive a dispute statements set, we do the following:
 1. Take a on-chain state of disabled validators at the relay parent block.
-1. Take a list of validators who lost a dispute in that session in the order that prioritizes the biggest and newest offence.
+1. Take a list of those who lost a dispute in that session in the order that prioritizes the biggest and newest offence.
 1. Combine the two lists and take the first byzantine threshold validators from it.
-1. If the dispute is unconfimed, check if all votes against the candidate are from disabled validators. If so, we don't participate in the dispute, but record the votes.
+1. If the dispute is unconfimed, check if all votes against the candidate are from disabled validators.
+If so, we don't participate in the dispute, but record the votes.
 
 ### Backing Votes
 
