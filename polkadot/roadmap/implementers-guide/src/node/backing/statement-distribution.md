@@ -126,8 +126,12 @@ only send "importable" statements to the backing subsystem itself.
 ### Disabled validators
 
 After a validator is disabled in the runtime, validators should no longer
-accept statements from it. Because we use the state of the active leaves to
-check whether a validator is disabled instead of the relay_parent, the notion
+accept statements from it. Filtering out of statements from disabled validators
+on the node side is purely an optimization, as it will be done in the runtime
+as well.
+
+Because we use the state of the active leaves to
+check whether a validator is disabled instead of the relay parent, the notion
 of being disabled is inherently racy:
 - the responder has learned about the disabled validator before the requester
 - the receiver has witnessed the disabled validator after sending the request
