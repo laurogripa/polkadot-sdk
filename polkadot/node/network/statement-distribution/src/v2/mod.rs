@@ -3164,21 +3164,20 @@ pub(crate) fn answer_request(state: &mut State, message: ResponderMessage) {
 	};
 
 	// Ignore disabled validators from the latest state when sending the response.
-	let disabled_mask = per_session
-		.disabled_bitmask(confirmed.group_index())
-		.expect("group existence checked; qed");
+	let disabled_mask =
+		per_session.disabled_bitmask(group_index).expect("group existence checked; qed");
 	and_mask.mask_seconded(&disabled_mask);
 	and_mask.mask_valid(&disabled_mask);
 
 	let mut sent_filter = StatementFilter::blank(group_size);
 	let statements: Vec<_> = relay_parent_state
 		.statement_store
-		.group_statements(&per_session.groups, confirmed.group_index(), *candidate_hash, &and_mask)
-		.map(|s| s.as_unchecked().clone())
-		.inspect(|s| {
+		.group_statements(&per_session.groups, group_index, *candidate_hash, &and_mask)
+		.map(|s| {
+			let s = s.as_unchecked().clone();
 			let index_in_group = |v: ValidatorIndex| group.iter().position(|x| &v == x);
 			let Some(i) = index_in_group(s.unchecked_validator_index()) else {
-				return
+				return s
 			};
 
 			match s.unchecked_payload() {
@@ -3189,6 +3188,7 @@ pub(crate) fn answer_request(state: &mut State, message: ResponderMessage) {
 					sent_filter.validated_in_group.set(i, true);
 				},
 			}
+			s
 		})
 		.collect();
 
