@@ -244,7 +244,8 @@ if any of the following holds true:
 - The dispute is already confirmed: Meaning that 1/3+1 nodes already participated, as this suggests in our threat model
   that there was at least one honest node that already voted, so the dispute must be genuine.
 
-In addition to that, we only participate in a non-confirmed dispute if at least one vote against the candidate is from a non-disabled validator.
+In addition to that, we only participate in a non-confirmed dispute if at least one vote against the candidate is from
+a non-disabled validator.
 
 Note: A node might be out of sync with the chain and we might only learn about a block, including a candidate, after we
 learned about the dispute. This means, we have to re-evaluate participation decisions on block import!
