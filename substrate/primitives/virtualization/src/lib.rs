@@ -29,26 +29,9 @@ pub use native::{Memory, Virt};
 
 pub use sp_io::{
 	VirtExecError as ExecError, VirtInstantiateError as InstantiateError,
-	VirtMemoryError as MemoryError,
+	VirtMemoryError as MemoryError, VirtSharedState as SharedState,
+	VirtSyscallHandler as SyscallHandler,
 };
-
-#[repr(C)]
-pub struct SharedState<T> {
-	pub gas_left: u64,
-	pub exit: bool,
-	pub user: T,
-}
-
-pub type SyscallHandler<T> = extern "C" fn(
-	state: &mut SharedState<T>,
-	syscall_no: u32,
-	a0: u32,
-	a1: u32,
-	a2: u32,
-	a3: u32,
-	a4: u32,
-	a5: u32,
-) -> u64;
 
 pub trait VirtT: Sized {
 	type Memory: MemoryT;

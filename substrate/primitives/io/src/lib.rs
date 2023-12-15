@@ -1762,6 +1762,24 @@ pub enum VirtMemoryError {
 	OutOfBounds = 1,
 }
 
+#[repr(C)]
+pub struct VirtSharedState<T> {
+	pub gas_left: u64,
+	pub exit: bool,
+	pub user: T,
+}
+
+pub type VirtSyscallHandler<T> = extern "C" fn(
+	state: &mut VirtSharedState<T>,
+	syscall_no: u32,
+	a0: u32,
+	a1: u32,
+	a2: u32,
+	a3: u32,
+	a4: u32,
+	a5: u32,
+) -> u64;
+
 #[runtime_interface(wasm_only)]
 pub trait Virtualization {
 	fn instantiate(
