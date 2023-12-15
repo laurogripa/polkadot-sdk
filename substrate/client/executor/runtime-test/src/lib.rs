@@ -40,7 +40,7 @@ use sp_core::{ed25519, sr25519};
 use sp_io::{
 	crypto::{ed25519_verify, sr25519_verify},
 	hashing::{blake2_128, blake2_256, sha2_256, twox_128, twox_256},
-	storage, wasm_tracing, ExecOutcome, RiscvState,
+	storage, wasm_tracing,
 };
 #[cfg(not(feature = "std"))]
 use sp_runtime::{
@@ -422,12 +422,17 @@ mod output_validity {
 
 #[cfg(not(feature = "std"))]
 fn execute_riscv(program: &[u8]) {
+	use sp_io::{
+		virtualization as host_fn, VirtExecError as ExecError, VirtSharedState as SharedState,
+	};
+
 	struct State {
 		counter: u64,
+		instance_id: u64,
 	}
 
 	unsafe extern "C" fn syscall_handler(
-		state: &mut RiscvState<State>,
+		state: &mut SharedState<State>,
 		syscall_no: u32,
 		a0: u32,
 		a1: u32,
@@ -440,13 +445,23 @@ fn execute_riscv(program: &[u8]) {
 			// read counter
 			1 => {
 				let buf = state.user.counter.to_le_bytes();
-				sp_io::riscv::write_memory(a0, buf.as_ptr() as u32, buf.len() as u32);
+				host_fn::write_memory(
+					state.user.instance_id,
+					a0,
+					buf.as_ptr() as u32,
+					buf.len() as u32,
+				);
 				syscall_no.into()
 			},
 			// increment counter
 			2 => {
 				let mut buf = [0u8; 8];
-				sp_io::riscv::read_memory(a0, buf.as_mut_ptr() as u32, buf.len() as u32);
+				host_fn::read_memory(
+					state.user.instance_id,
+					a0,
+					buf.as_mut_ptr() as u32,
+					buf.len() as u32,
+				);
 				state.user.counter += u64::from_le_bytes(buf);
 				u64::from(syscall_no) << 56
 			},
@@ -460,34 +475,58 @@ fn execute_riscv(program: &[u8]) {
 	}
 
 	// start counter at 0 and use a host trap to exit
-	let mut state = RiscvState { gas_left: 0, exit: false, user: State { counter: 0 } };
-	let ret =
-		sp_io::riscv::execute(program, "main_0", syscall_handler as u32, &mut state as *mut _ as u32);
-	assert_eq!(ret, ExecOutcome::Trap);
+	let instance_id = host_fn::instantiate(program).unwrap();
+	let mut state =
+		SharedState { gas_left: 0, exit: false, user: State { counter: 0, instance_id } };
+	let ret = host_fn::execute(
+		instance_id,
+		"main_0",
+		syscall_handler as u32,
+		&mut state as *mut _ as u32,
+	);
+	assert_eq!(ret, Err(ExecError::Trap));
 	assert!(state.exit);
 	assert_eq!(state.user.counter, 8);
 
 	// start counter at 21 and use a host trap to exit
-	let mut state = RiscvState { gas_left: 0, exit: false, user: State { counter: 0 } };
-	let ret =
-		sp_io::riscv::execute(program, "main_21", syscall_handler as u32, &mut state as *mut _ as u32);
-	assert_eq!(ret, ExecOutcome::Trap);
+	let instance_id = host_fn::instantiate(program).unwrap();
+	let mut state =
+		SharedState { gas_left: 0, exit: false, user: State { counter: 0, instance_id } };
+	let ret = host_fn::execute(
+		instance_id,
+		"main_21",
+		syscall_handler as u32,
+		&mut state as *mut _ as u32,
+	);
+	assert_eq!(ret, Err(ExecError::Trap));
 	assert!(state.exit);
 	assert_eq!(state.user.counter, 29);
 
 	// start counter at 7 but instruct to return naturally
-	let mut state = RiscvState { gas_left: 0, exit: false, user: State { counter: 0 } };
-	let ret =
-		sp_io::riscv::execute(program, "main_7_no_exit", syscall_handler as u32, &mut state as *mut _ as u32);
-	assert_eq!(ret, ExecOutcome::Ok);
+	let instance_id = host_fn::instantiate(program).unwrap();
+	let mut state =
+		SharedState { gas_left: 0, exit: false, user: State { counter: 0, instance_id } };
+	let ret = host_fn::execute(
+		instance_id,
+		"main_7_no_exit",
+		syscall_handler as u32,
+		&mut state as *mut _ as u32,
+	);
+	assert_eq!(ret, Ok(()));
 	assert!(!state.exit);
 	assert_eq!(state.user.counter, 15);
 
 	// instruct program to panic
-	let mut state = RiscvState { gas_left: 0, exit: false, user: State { counter: 0 } };
-	let ret =
-		sp_io::riscv::execute(program, "panic_me", syscall_handler as u32, &mut state as *mut _ as u32);
-	assert_eq!(ret, ExecOutcome::Trap);
+	let instance_id = host_fn::instantiate(program).unwrap();
+	let mut state =
+		SharedState { gas_left: 0, exit: false, user: State { counter: 0, instance_id } };
+	let ret = host_fn::execute(
+		instance_id,
+		"panic_me",
+		syscall_handler as u32,
+		&mut state as *mut _ as u32,
+	);
+	assert_eq!(ret, Err(ExecError::Trap));
 	assert!(!state.exit);
 	assert_eq!(state.user.counter, 0);
 }
