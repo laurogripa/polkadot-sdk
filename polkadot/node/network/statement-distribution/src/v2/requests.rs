@@ -36,6 +36,7 @@ use super::{
 };
 use crate::LOG_TARGET;
 
+use bitvec::prelude::{BitVec, Lsb0};
 use polkadot_node_network_protocol::{
 	request_response::{
 		outgoing::{Recipient as RequestRecipient, RequestError},
@@ -538,6 +539,7 @@ impl UnhandledResponse {
 		session: SessionIndex,
 		validator_key_lookup: impl Fn(ValidatorIndex) -> Option<ValidatorId>,
 		allowed_para_lookup: impl Fn(ParaId, GroupIndex) -> bool,
+		disabled_mask: BitVec<u8, Lsb0>,
 	) -> ResponseValidationOutput {
 		let UnhandledResponse {
 			response: TaggedResponse { identifier, requested_peer, props, response },
@@ -621,6 +623,7 @@ impl UnhandledResponse {
 			session,
 			validator_key_lookup,
 			allowed_para_lookup,
+			disabled_mask,
 		);
 
 		if let CandidateRequestStatus::Complete { .. } = output.request_status {
@@ -640,6 +643,7 @@ fn validate_complete_response(
 	session: SessionIndex,
 	validator_key_lookup: impl Fn(ValidatorIndex) -> Option<ValidatorId>,
 	allowed_para_lookup: impl Fn(ParaId, GroupIndex) -> bool,
+	disabled_mask: BitVec<u8, Lsb0>,
 ) -> ResponseValidationOutput {
 	let RequestProperties { backing_threshold, mut unwanted_mask } = props;
 
@@ -733,6 +737,10 @@ fn validate_complete_response(
 						rep_changes.push((requested_peer, COST_UNREQUESTED_RESPONSE_STATEMENT));
 						continue
 					}
+
+					if disabled_mask.get(i).map_or(false, |x| *x) {
+						continue
+					}
 				},
 				CompactStatement::Valid(_) => {
 					if unwanted_mask.validated_in_group[i] {
@@ -742,6 +750,10 @@ fn validate_complete_response(
 
 					if received_filter.validated_in_group[i] {
 						rep_changes.push((requested_peer, COST_UNREQUESTED_RESPONSE_STATEMENT));
+						continue
+					}
+
+					if disabled_mask.get(i).map_or(false, |x| *x) {
 						continue
 					}
 				},
@@ -1009,6 +1021,7 @@ mod tests {
 		let group = &[ValidatorIndex(0), ValidatorIndex(1), ValidatorIndex(2)];
 
 		let unwanted_mask = StatementFilter::blank(group_size);
+		let disabled_mask: BitVec<u8, Lsb0> = Default::default();
 		let request_properties = RequestProperties { unwanted_mask, backing_threshold: None };
 
 		// Get requests.
@@ -1052,6 +1065,7 @@ mod tests {
 				0,
 				validator_key_lookup,
 				allowed_para_lookup,
+				disabled_mask.clone(),
 			);
 			assert_eq!(
 				output,
@@ -1090,6 +1104,7 @@ mod tests {
 				0,
 				validator_key_lookup,
 				allowed_para_lookup,
+				disabled_mask,
 			);
 			assert_eq!(
 				output,
@@ -1163,12 +1178,14 @@ mod tests {
 			};
 			let validator_key_lookup = |_v| None;
 			let allowed_para_lookup = |_para, _g_index| true;
+			let disabled_mask: BitVec<u8, Lsb0> = Default::default();
 			let output = response.validate_response(
 				&mut request_manager,
 				group,
 				0,
 				validator_key_lookup,
 				allowed_para_lookup,
+				disabled_mask,
 			);
 			assert_eq!(
 				output,
@@ -1241,12 +1258,14 @@ mod tests {
 			let validator_key_lookup = |_v| None;
 			let allowed_para_lookup = |_para, _g_index| true;
 			let statements = vec![];
+			let disabled_mask: BitVec<u8, Lsb0> = Default::default();
 			let output = response.validate_response(
 				&mut request_manager,
 				group,
 				0,
 				validator_key_lookup,
 				allowed_para_lookup,
+				disabled_mask,
 			);
 			assert_eq!(
 				output,

@@ -2940,6 +2940,10 @@ pub(crate) async fn handle_response<Context>(
 			Some(g) => g,
 		};
 
+		let disabled_mask = per_session
+			.disabled_bitmask(group_index)
+			.expect("group_index checked above; qed");
+
 		let res = response.validate_response(
 			&mut state.request_manager,
 			group,
@@ -2954,6 +2958,7 @@ pub(crate) async fn handle_response<Context>(
 
 				Some(g_index) == expected_group
 			},
+			disabled_mask,
 		);
 
 		for (peer, rep) in res.reputation_changes {
