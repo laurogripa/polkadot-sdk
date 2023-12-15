@@ -334,7 +334,7 @@ by keeping track of the validators who lost a dispute in the past few sessions a
 on-chain disabled validators state. In addition to past session misbehavior, this also heps in case a slash is delayed.
 
 When we receive a dispute statements set, we do the following:
-1. Take a on-chain state of disabled validators at the relay parent block.
+1. Take the on-chain state of disabled validators at the relay parent block.
 1. Take a list of those who lost a dispute in that session in the order that prioritizes the biggest and newest offence.
 1. Combine the two lists and take the first byzantine threshold validators from it.
 1. If the dispute is unconfimed, check if all votes against the candidate are from disabled validators.

@@ -2641,7 +2641,7 @@ fn participation_with_onchain_disabling() {
 
 			// now import enough votes for dispute confirmation
 			let mut statements = Vec::new();
-			for i in vec![3, 4, 5] {
+			for i in vec![3, 4] {
 				let vote = test_state.issue_explicit_statement_with_index(
 					ValidatorIndex(i),
 					candidate_hash,
@@ -2698,7 +2698,7 @@ fn participation_with_onchain_disabling() {
 					.await;
 
 				let (_, _, votes) = rx.await.unwrap().get(0).unwrap().clone();
-				assert_eq!(votes.valid.raw().len(), 5); // 5 => we have participated
+				assert_eq!(votes.valid.raw().len(), 4); // 3+1 => we have participated
 				assert_eq!(votes.invalid.len(), 1);
 			}
 
