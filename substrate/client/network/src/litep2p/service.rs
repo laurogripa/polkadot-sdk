@@ -312,6 +312,10 @@ impl NetworkPeers for Litep2pNetworkService {
 			.unbounded_send(NetworkServiceCommand::AddKnownAddress { peer, address });
 	}
 
+	fn peer_reputation(&self, peer_id: &PeerId) -> i32 {
+		self.peer_store_handle.peer_reputation(peer_id)
+	}
+
 	fn report_peer(&self, peer: PeerId, cost_benefit: ReputationChange) {
 		let _ = self
 			.cmd_tx

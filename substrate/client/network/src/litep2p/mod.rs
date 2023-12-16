@@ -18,6 +18,8 @@
 
 //! `NetworkBackend` implementation for `litep2p`.
 
+#![allow(unused)]
+
 use crate::{
 	config::{
 		FullNetworkConfiguration, IncomingRequest, NodeKeyConfig, NotificationHandshake, Params,
