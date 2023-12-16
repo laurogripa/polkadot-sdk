@@ -536,9 +536,9 @@ impl Peerset {
 			PeerState::Disconnected => {},
 			// backed-off peers are ignored (TODO: should they be ignored?)
 			PeerState::Backoff => {
-				if self.protocol.contains("block") {
-					panic!("do not reject here if it's possible to accept the peer");
-				}
+				// if self.protocol.contains("block") {
+				// 	panic!("do not reject here if it's possible to accept the peer");
+				// }
 
 				log::trace!(target: LOG_TARGET, "{}: ({peer:?}) is backed-off, reject inbound substream", self.protocol);
 				return ValidationResult::Reject

@@ -1824,22 +1824,8 @@ pub async fn start_contracts_rococo_node<Net: NetworkBackend<Block, Hash>>(
 	collator_options: CollatorOptions,
 	para_id: ParaId,
 	hwbench: Option<sc_sysinfo::HwBench>,
-<<<<<<< HEAD
 ) -> sc_service::error::Result<(TaskManager, Arc<ParachainClient<RuntimeApi>>)> {
-	start_contracts_rococo_node_impl::<RuntimeApi, _, _, _>(
-||||||| parent of f680c51188 (Make Polkadot SDK generic over the networking implementation)
-) -> sc_service::error::Result<(
-	TaskManager,
-	Arc<ParachainClient<contracts_rococo_runtime::RuntimeApi>>,
-)> {
-	start_contracts_rococo_node_impl::<contracts_rococo_runtime::RuntimeApi, _, _, _>(
-=======
-) -> sc_service::error::Result<(
-	TaskManager,
-	Arc<ParachainClient<contracts_rococo_runtime::RuntimeApi>>,
-)> {
-	start_contracts_rococo_node_impl::<contracts_rococo_runtime::RuntimeApi, _, _, _, Net>(
->>>>>>> f680c51188 (Make Polkadot SDK generic over the networking implementation)
+	start_contracts_rococo_node_impl::<RuntimeApi, _, _, _, Net>(
 		parachain_config,
 		polkadot_config,
 		collator_options,
