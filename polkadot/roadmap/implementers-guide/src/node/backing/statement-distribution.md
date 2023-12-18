@@ -125,7 +125,7 @@ only send "importable" statements to the backing subsystem itself.
 
 ### Disabled validators
 
-After a validator is disabled in the runtime, validators should no longer
+After a validator is disabled in the runtime, other validators should no longer
 accept statements from it. Filtering out of statements from disabled validators
 on the node side is purely an optimization, as it will be done in the runtime
 as well.
@@ -136,7 +136,7 @@ of being disabled is inherently racy:
 - the responder has learned about the disabled validator before the requester
 - the receiver has witnessed the disabled validator after sending the request
 
-We can have sent a manifest to a peer, then received information about
+We could have sent a manifest to a peer, then received information about
 disabling, and then receive a request. This can break an invariant of the grid
 mode:
 - the response is required to indicate quorum
