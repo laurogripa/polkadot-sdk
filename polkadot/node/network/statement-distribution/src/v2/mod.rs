@@ -191,8 +191,7 @@ struct PerSessionState {
 	// getting the topology from the gossip-support subsystem
 	grid_view: Option<grid::SessionTopologyView>,
 	local_validator: Option<LocalValidatorIndex>,
-	// We assume that the validators are never re-enabled per session
-	// and store the latest state here.
+	// We store the latest state here based on union of leaves.
 	disabled_validators: BTreeSet<ValidatorIndex>,
 }
 
@@ -263,12 +262,17 @@ impl PerSessionState {
 		self.disabled_validators.contains(validator_index)
 	}
 
-	/// Extend the set of disabled validators for the current session.
+	/// Extend the list of disabled validators.
 	pub fn extend_disabled_validators(
 		&mut self,
 		disabled: impl IntoIterator<Item = ValidatorIndex>,
 	) {
 		self.disabled_validators.extend(disabled);
+	}
+
+	/// Clear the list of disabled validators.
+	pub fn clear_disabled_validators(&mut self) {
+		self.disabled_validators.clear();
 	}
 }
 
@@ -546,13 +550,20 @@ pub(crate) async fn handle_active_leaves_update<Context>(
 
 	let new_relay_parents =
 		state.implicit_view.all_allowed_relay_parents().cloned().collect::<Vec<_>>();
-	for new_relay_parent in new_relay_parents.iter().cloned() {
-		if state.per_relay_parent.contains_key(&new_relay_parent) {
-			continue
-		}
 
-		// New leaf: fetch info from runtime API and initialize
-		// `per_relay_parent`.
+	// We clear the list of disabled validators to reset it properly based on union of leaves.
+	let mut cleared_disabled_validators: BTreeSet<SessionIndex> = BTreeSet::new();
+
+	for new_relay_parent in new_relay_parents.iter().cloned() {
+		// Even if we processed this relay parent before, we need to fetch the list of disabled
+		// validators based on union of active leaves.
+		let disabled_validators =
+			polkadot_node_subsystem_util::vstaging::get_disabled_validators_with_fallback(
+				ctx.sender(),
+				new_relay_parent,
+			)
+			.await
+			.map_err(JfyiError::FetchDisabledValidators)?;
 
 		let session_index = polkadot_node_subsystem_util::request_session_index_for_child(
 			new_relay_parent,
@@ -562,31 +573,6 @@ pub(crate) async fn handle_active_leaves_update<Context>(
 		.await
 		.map_err(JfyiError::RuntimeApiUnavailable)?
 		.map_err(JfyiError::FetchSessionIndex)?;
-
-		let availability_cores = polkadot_node_subsystem_util::request_availability_cores(
-			new_relay_parent,
-			ctx.sender(),
-		)
-		.await
-		.await
-		.map_err(JfyiError::RuntimeApiUnavailable)?
-		.map_err(JfyiError::FetchAvailabilityCores)?;
-
-		let disabled_validators =
-			polkadot_node_subsystem_util::vstaging::get_disabled_validators_with_fallback(
-				ctx.sender(),
-				new_relay_parent,
-			)
-			.await
-			.map_err(JfyiError::FetchDisabledValidators)?;
-
-		let group_rotation_info =
-			polkadot_node_subsystem_util::request_validator_groups(new_relay_parent, ctx.sender())
-				.await
-				.await
-				.map_err(JfyiError::RuntimeApiUnavailable)?
-				.map_err(JfyiError::FetchValidatorGroups)?
-				.1;
 
 		if !state.per_session.contains_key(&session_index) {
 			let session_info = polkadot_node_subsystem_util::request_session_info(
@@ -626,6 +612,10 @@ pub(crate) async fn handle_active_leaves_update<Context>(
 			.get_mut(&session_index)
 			.expect("either existed or just inserted; qed");
 
+		if cleared_disabled_validators.insert(session_index) {
+			per_session.clear_disabled_validators();
+		}
+
 		if !disabled_validators.is_empty() {
 			gum::debug!(
 				target: LOG_TARGET,
@@ -637,6 +627,30 @@ pub(crate) async fn handle_active_leaves_update<Context>(
 
 			per_session.extend_disabled_validators(disabled_validators);
 		}
+
+		if state.per_relay_parent.contains_key(&new_relay_parent) {
+			continue
+		}
+
+		// New leaf: fetch info from runtime API and initialize
+		// `per_relay_parent`.
+
+		let availability_cores = polkadot_node_subsystem_util::request_availability_cores(
+			new_relay_parent,
+			ctx.sender(),
+		)
+		.await
+		.await
+		.map_err(JfyiError::RuntimeApiUnavailable)?
+		.map_err(JfyiError::FetchAvailabilityCores)?;
+
+		let group_rotation_info =
+			polkadot_node_subsystem_util::request_validator_groups(new_relay_parent, ctx.sender())
+				.await
+				.await
+				.map_err(JfyiError::RuntimeApiUnavailable)?
+				.map_err(JfyiError::FetchValidatorGroups)?
+				.1;
 
 		let local_validator = per_session.local_validator.and_then(|v| {
 			if let LocalValidatorIndex::Active(idx) = v {
