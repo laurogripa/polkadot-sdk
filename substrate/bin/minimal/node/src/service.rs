@@ -127,6 +127,9 @@ pub fn new_full<Network: sc_network::NetworkBackend<Block, <Block as BlockT>::Ha
 		<Block as BlockT>::Hash,
 		Network,
 	>::new(&config.network);
+	let metrics = Network::register_notification_metrics(
+		config.prometheus_config.as_ref().map(|cfg| &cfg.registry),
+	);
 
 	let (network, system_rpc_tx, tx_handler_controller, network_starter, sync_service) =
 		sc_service::build_network(sc_service::BuildNetworkParams {
@@ -139,7 +142,7 @@ pub fn new_full<Network: sc_network::NetworkBackend<Block, <Block as BlockT>::Ha
 			block_announce_validator_builder: None,
 			warp_sync_params: None,
 			block_relay: None,
-			metrics: None,
+			metrics,
 		})?;
 
 	if config.offchain_worker.enabled {

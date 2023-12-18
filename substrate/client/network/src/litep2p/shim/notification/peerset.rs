@@ -68,6 +68,9 @@ const LOG_TARGET: &str = "sub-libp2p::peerset";
 /// Default backoff for connection re-attempts.
 const DEFAULT_BACKOFF: Duration = Duration::from_secs(15);
 
+/// Open failure backoff.
+const OPEN_FAILURE_BACKOFF: Duration = Duration::from_secs(60);
+
 /// Slot allocation frequency.
 ///
 /// How often should [`Peerset`] attempt to establish outbound connections.
@@ -330,10 +333,12 @@ pub struct Peerset {
 	connected_peers: Arc<AtomicUsize>,
 
 	/// Pending backoffs for peers who recently disconnected.
-	pending_backoffs: FuturesUnordered<BoxFuture<'static, PeerId>>,
+	pending_backoffs: FuturesUnordered<BoxFuture<'static, (PeerId, i32)>>,
 
 	/// Next time when [`Peerset`] should perform slot allocation.
 	next_slot_allocation: Delay,
+
+	opening: HashMap<PeerId, Instant>,
 }
 
 macro_rules! adjust_or_warn {
@@ -390,6 +395,7 @@ impl Peerset {
 				connected_peers,
 				pending_backoffs: FuturesUnordered::new(),
 				next_slot_allocation: Delay::new(SLOT_ALLOCATION_FREQUENCY),
+				opening: HashMap::new(),
 			},
 			cmd_tx,
 		)
@@ -430,6 +436,8 @@ impl Peerset {
 			debug_assert!(false);
 			return false
 		};
+
+		self.opening.remove(&peer);
 
 		// litep2p doesn't support the ability to cancel an opening substream so if the substream
 		// was closed while it was opening, it was marked as canceled and if the substream opens
@@ -517,10 +525,9 @@ impl Peerset {
 		*state = PeerState::Backoff;
 
 		self.connected_peers.fetch_sub(1usize, Ordering::Relaxed);
-		self.peerstore_handle.report_peer(peer, DISCONNECT_ADJUSTMENT);
 		self.pending_backoffs.push(Box::pin(async move {
 			Delay::new(DEFAULT_BACKOFF).await;
-			peer
+			(peer, DISCONNECT_ADJUSTMENT)
 		}));
 	}
 
@@ -650,6 +657,8 @@ impl Peerset {
 			self.protocol,
 		);
 
+		self.opening.remove(&peer);
+
 		match self.peers.get(&peer) {
 			Some(PeerState::Opening { direction: Direction::Outbound(Reserved::No) }) => {
 				adjust_or_warn!(
@@ -699,10 +708,9 @@ impl Peerset {
 		}
 
 		self.peers.insert(peer, PeerState::Backoff);
-		self.peerstore_handle.report_peer(peer, OPEN_FAILURE_ADJUSTMENT);
 		self.pending_backoffs.push(Box::pin(async move {
-			Delay::new(DEFAULT_BACKOFF).await;
-			peer
+			Delay::new(OPEN_FAILURE_BACKOFF).await;
+			(peer, OPEN_FAILURE_ADJUSTMENT)
 		}));
 	}
 
@@ -759,9 +767,18 @@ impl Stream for Peerset {
 
 	fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
 		// check if any pending backoffs have expired
-		while let Poll::Ready(Some(peer)) = self.pending_backoffs.poll_next_unpin(cx) {
+		while let Poll::Ready(Some((peer, reputation))) = self.pending_backoffs.poll_next_unpin(cx)
+		{
 			log::trace!(target: LOG_TARGET, "{}: backoff expired for {peer:?}", self.protocol);
+
 			self.peers.insert(peer, PeerState::Disconnected);
+			self.peerstore_handle.report_peer(peer, reputation);
+		}
+
+		for (peer, instant) in &self.opening {
+			if instant.elapsed().as_secs() > 30 {
+				panic!("substream for {peer:?} has been opening for more than 30 seconds");
+			}
 		}
 
 		// TODO(aaro): coalesce the commands into one call to `litep2p`
@@ -1111,6 +1128,7 @@ impl Stream for Peerset {
 
 				if peers.len() > 0 {
 					peers.iter().for_each(|peer| {
+						self.opening.insert(*peer, Instant::now());
 						self.peers.insert(
 							*peer,
 							PeerState::Opening { direction: Direction::Outbound(Reserved::No) },

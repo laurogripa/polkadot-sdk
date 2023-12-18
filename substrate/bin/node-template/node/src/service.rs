@@ -148,14 +148,17 @@ pub fn new_full<
 		<Block as sp_runtime::traits::Block>::Hash,
 		N,
 	>::new(&config.network);
-	let metrics = N::register_metrics(config.prometheus_registry());
+	let metrics = N::register_notification_metrics(config.prometheus_registry());
 
 	let grandpa_protocol_name = sc_consensus_grandpa::protocol_standard_name(
 		&client.block_hash(0).ok().flatten().expect("Genesis block exists; qed"),
 		&config.chain_spec,
 	);
 	let (grandpa_protocol_config, grandpa_notification_service) =
-		sc_consensus_grandpa::grandpa_peers_set_config::<_, N>(grandpa_protocol_name.clone(), None);
+		sc_consensus_grandpa::grandpa_peers_set_config::<_, N>(
+			grandpa_protocol_name.clone(),
+			metrics.clone(),
+		);
 	net_config.add_notification_protocol(grandpa_protocol_config);
 
 	let warp_sync = Arc::new(sc_consensus_grandpa::warp_proof::NetworkProvider::new(

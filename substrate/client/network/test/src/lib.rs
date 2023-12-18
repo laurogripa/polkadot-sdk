@@ -900,13 +900,17 @@ pub trait TestNetFactory: Default + Sized + Send {
 		let block_announce_validator = config
 			.block_announce_validator
 			.unwrap_or_else(|| Box::new(DefaultBlockAnnounceValidator));
+		let metrics = <NetworkWorker<_, _> as sc_network::NetworkBackend<
+			Block,
+			<Block as BlockT>::Hash,
+		>>::register_notification_metrics(None);
 
 		let (engine, sync_service, block_announce_config) =
 			sc_network_sync::engine::SyncingEngine::new(
 				Roles::from(if config.is_authority { &Role::Authority } else { &Role::Full }),
 				client.clone(),
 				None,
-				None,
+				metrics,
 				&full_net_config,
 				protocol_id.clone(),
 				&fork_id,

@@ -23,6 +23,7 @@ use sc_network::{
 	},
 	peer_store::PeerStore,
 	service::traits::NetworkService,
+	NotificationMetrics,
 };
 
 use sc_network::{config::FullNetworkConfiguration, NetworkBackend, NotificationService};
@@ -38,6 +39,7 @@ pub(crate) fn build_collator_network<Network: NetworkBackend<Block, Hash>>(
 	spawn_handle: SpawnTaskHandle,
 	genesis_hash: Hash,
 	best_header: Header,
+	metrics: NotificationMetrics,
 ) -> Result<
 	(Arc<dyn NetworkService>, NetworkStarter, Box<dyn sp_consensus::SyncOracle + Send>),
 	Error,
@@ -50,6 +52,7 @@ pub(crate) fn build_collator_network<Network: NetworkBackend<Block, Hash>>(
 		best_header.number,
 		best_header.hash(),
 		genesis_hash,
+		metrics,
 	);
 
 	// Since this node has no syncing, we do not want light-clients to connect to it.
@@ -175,6 +178,7 @@ fn get_block_announce_proto_config<Network: NetworkBackend<Block, Hash>>(
 	best_number: NumberFor<Block>,
 	best_hash: Hash,
 	genesis_hash: Hash,
+	metrics: NotificationMetrics,
 ) -> (Network::NotificationProtocolConfig, Box<dyn NotificationService>) {
 	let block_announces_protocol = {
 		let genesis_hash = genesis_hash.as_ref();
@@ -203,6 +207,6 @@ fn get_block_announce_proto_config<Network: NetworkBackend<Block, Hash>>(
 			reserved_nodes: Vec::new(),
 			non_reserved_mode: NonReservedPeerMode::Deny,
 		},
-		None, // TODO(aaro): pass metrics
+		metrics,
 	)
 }

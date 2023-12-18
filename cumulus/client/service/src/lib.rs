@@ -479,6 +479,9 @@ where
 			Box::new(block_announce_validator) as Box<_>
 		},
 	};
+	let metrics = Network::register_notification_metrics(
+		parachain_config.prometheus_config.as_ref().map(|cfg| &cfg.registry),
+	);
 
 	sc_service::build_network(sc_service::BuildNetworkParams {
 		config: parachain_config,
@@ -490,7 +493,7 @@ where
 		block_announce_validator_builder: Some(Box::new(move |_| block_announce_validator)),
 		warp_sync_params,
 		block_relay: None,
-		metrics: None, // TODO(aaro): enable metrics
+		metrics,
 	})
 }
 
