@@ -86,15 +86,7 @@ fn cluster_peer_allowed_to_send_incomplete_statements() {
 			send_peer_view_change(&mut overseer, peer_c.clone(), view![relay_parent]).await;
 		}
 
-		activate_leaf(&mut overseer, &test_leaf, &state, true).await;
-
-		answer_expected_hypothetical_depth_request(
-			&mut overseer,
-			vec![],
-			Some(relay_parent),
-			false,
-		)
-		.await;
+		activate_leaf(&mut overseer, &test_leaf, &state, true, vec![]).await;
 
 		// Peer in cluster sends a statement, triggering a request.
 		{
@@ -272,15 +264,7 @@ fn peer_reported_for_providing_statements_meant_to_be_masked_out() {
 			send_peer_view_change(&mut overseer, peer_e.clone(), view![relay_parent]).await;
 		}
 
-		activate_leaf(&mut overseer, &test_leaf, &state, true).await;
-
-		answer_expected_hypothetical_depth_request(
-			&mut overseer,
-			vec![],
-			Some(relay_parent),
-			false,
-		)
-		.await;
+		activate_leaf(&mut overseer, &test_leaf, &state, true, vec![]).await;
 
 		// Send gossip topology.
 		send_new_topology(&mut overseer, state.make_dummy_topology()).await;
@@ -537,15 +521,7 @@ fn peer_reported_for_not_enough_statements() {
 			send_peer_view_change(&mut overseer, peer_e.clone(), view![relay_parent]).await;
 		}
 
-		activate_leaf(&mut overseer, &test_leaf, &state, true).await;
-
-		answer_expected_hypothetical_depth_request(
-			&mut overseer,
-			vec![],
-			Some(relay_parent),
-			false,
-		)
-		.await;
+		activate_leaf(&mut overseer, &test_leaf, &state, true, vec![]).await;
 
 		// Send gossip topology.
 		send_new_topology(&mut overseer, state.make_dummy_topology()).await;
@@ -725,15 +701,7 @@ fn peer_reported_for_duplicate_statements() {
 			send_peer_view_change(&mut overseer, peer_c.clone(), view![relay_parent]).await;
 		}
 
-		activate_leaf(&mut overseer, &test_leaf, &state, true).await;
-
-		answer_expected_hypothetical_depth_request(
-			&mut overseer,
-			vec![],
-			Some(relay_parent),
-			false,
-		)
-		.await;
+		activate_leaf(&mut overseer, &test_leaf, &state, true, vec![]).await;
 
 		// Peer in cluster sends a statement, triggering a request.
 		{
@@ -887,15 +855,7 @@ fn peer_reported_for_providing_statements_with_invalid_signatures() {
 			send_peer_view_change(&mut overseer, peer_c.clone(), view![relay_parent]).await;
 		}
 
-		activate_leaf(&mut overseer, &test_leaf, &state, true).await;
-
-		answer_expected_hypothetical_depth_request(
-			&mut overseer,
-			vec![],
-			Some(relay_parent),
-			false,
-		)
-		.await;
+		activate_leaf(&mut overseer, &test_leaf, &state, true, vec![]).await;
 
 		// Peer in cluster sends a statement, triggering a request.
 		{
@@ -1026,15 +986,7 @@ fn peer_reported_for_providing_statements_with_wrong_validator_id() {
 			send_peer_view_change(&mut overseer, peer_c.clone(), view![relay_parent]).await;
 		}
 
-		activate_leaf(&mut overseer, &test_leaf, &state, true).await;
-
-		answer_expected_hypothetical_depth_request(
-			&mut overseer,
-			vec![],
-			Some(relay_parent),
-			false,
-		)
-		.await;
+		activate_leaf(&mut overseer, &test_leaf, &state, true, vec![]).await;
 
 		// Peer in cluster sends a statement, triggering a request.
 		{
@@ -1159,15 +1111,7 @@ fn disabled_validators_added_to_unwanted_mask() {
 			send_peer_view_change(&mut overseer, peer_b.clone(), view![relay_parent]).await;
 		}
 
-		activate_leaf(&mut overseer, &test_leaf, &state, true).await;
-
-		answer_expected_hypothetical_depth_request(
-			&mut overseer,
-			vec![],
-			Some(relay_parent),
-			false,
-		)
-		.await;
+		activate_leaf(&mut overseer, &test_leaf, &state, true, vec![]).await;
 
 		let seconded_disabled = state
 			.sign_statement(
@@ -1337,15 +1281,7 @@ fn when_validator_disabled_after_sending_the_request() {
 			send_peer_view_change(&mut overseer, peer_b.clone(), view![relay_parent]).await;
 		}
 
-		activate_leaf(&mut overseer, &test_leaf, &state, true).await;
-
-		answer_expected_hypothetical_depth_request(
-			&mut overseer,
-			vec![],
-			Some(relay_parent),
-			false,
-		)
-		.await;
+		activate_leaf(&mut overseer, &test_leaf, &state, true, vec![]).await;
 
 		let seconded_disabled = state
 			.sign_statement(
@@ -1399,14 +1335,7 @@ fn when_validator_disabled_after_sending_the_request() {
 							assert_eq!(outgoing.payload.candidate_hash, candidate_hash);
 							assert_eq!(outgoing.payload.mask, mask);
 
-							activate_leaf(&mut overseer, &test_leaf_disabled, &state, false).await;
-							answer_expected_hypothetical_depth_request(
-								&mut overseer,
-								vec![],
-								Some(another_relay_parent),
-								false,
-							)
-							.await;
+							activate_leaf(&mut overseer, &test_leaf_disabled, &state, false, vec![]).await;
 
 							let res = AttestedCandidateResponse {
 								candidate_receipt: candidate,
@@ -1518,15 +1447,7 @@ fn no_response_for_grid_request_not_meeting_quorum() {
 			send_peer_view_change(&mut overseer, peer_c.clone(), view![relay_parent]).await;
 		}
 
-		activate_leaf(&mut overseer, &test_leaf, &state, true).await;
-
-		answer_expected_hypothetical_depth_request(
-			&mut overseer,
-			vec![],
-			Some(relay_parent),
-			false,
-		)
-		.await;
+		activate_leaf(&mut overseer, &test_leaf, &state, true, vec![]).await;
 
 		// Send gossip topology.
 		send_new_topology(&mut overseer, state.make_dummy_topology()).await;
@@ -1661,9 +1582,7 @@ fn no_response_for_grid_request_not_meeting_quorum() {
 		let relay_2 = Hash::repeat_byte(2);
 		let disabled_validators = vec![v_a];
 		let leaf_2 = state.make_dummy_leaf_with_disabled_validators(relay_2, disabled_validators);
-		activate_leaf(&mut overseer, &leaf_2, &state, false).await;
-		answer_expected_hypothetical_depth_request(&mut overseer, vec![], Some(relay_2), false)
-			.await;
+		activate_leaf(&mut overseer, &leaf_2, &state, false, vec![]).await;
 
 		// Incoming request to local node. Local node should not send the response as v_a is
 		// disabled and hence the quorum is not reached.
@@ -1742,10 +1661,7 @@ fn disabling_works_from_the_latest_state_not_relay_parent() {
 			send_peer_view_change(&mut overseer, peer_disabled.clone(), view![relay_1]).await;
 		}
 
-		activate_leaf(&mut overseer, &leaf_1, &state, true).await;
-
-		answer_expected_hypothetical_depth_request(&mut overseer, vec![], Some(relay_1), false)
-			.await;
+		activate_leaf(&mut overseer, &leaf_1, &state, true, vec![]).await;
 
 		let seconded_1 = state
 			.sign_statement(
@@ -1806,10 +1722,8 @@ fn disabling_works_from_the_latest_state_not_relay_parent() {
 			answer_expected_hypothetical_depth_request(&mut overseer, vec![], None, false).await;
 		}
 
-		activate_leaf(&mut overseer, &leaf_2, &state, false).await;
+		activate_leaf(&mut overseer, &leaf_2, &state, false, vec![]).await;
 
-		answer_expected_hypothetical_depth_request(&mut overseer, vec![], Some(relay_2), false)
-			.await;
 		{
 			send_peer_message(
 				&mut overseer,
@@ -1887,15 +1801,7 @@ fn local_node_sanity_checks_incoming_requests() {
 			send_peer_view_change(&mut overseer, peer_c.clone(), view![relay_parent]).await;
 		}
 
-		activate_leaf(&mut overseer, &test_leaf, &state, true).await;
-
-		answer_expected_hypothetical_depth_request(
-			&mut overseer,
-			vec![],
-			Some(relay_parent),
-			false,
-		)
-		.await;
+		activate_leaf(&mut overseer, &test_leaf, &state, true, vec![]).await;
 
 		let mask = StatementFilter::blank(state.config.group_size);
 
@@ -2090,15 +1996,7 @@ fn local_node_checks_that_peer_can_request_before_responding() {
 		send_peer_view_change(&mut overseer, peer_b.clone(), view![relay_parent]).await;
 
 		// Finish setup
-		activate_leaf(&mut overseer, &test_leaf, &state, true).await;
-
-		answer_expected_hypothetical_depth_request(
-			&mut overseer,
-			vec![],
-			Some(relay_parent),
-			false,
-		)
-		.await;
+		activate_leaf(&mut overseer, &test_leaf, &state, true, vec![]).await;
 
 		let mask = StatementFilter::blank(state.config.group_size);
 
@@ -2322,15 +2220,7 @@ fn local_node_respects_statement_mask() {
 			send_peer_view_change(&mut overseer, peer_c.clone(), view![relay_parent]).await;
 		}
 
-		activate_leaf(&mut overseer, &test_leaf, &state, true).await;
-
-		answer_expected_hypothetical_depth_request(
-			&mut overseer,
-			vec![],
-			Some(relay_parent),
-			false,
-		)
-		.await;
+		activate_leaf(&mut overseer, &test_leaf, &state, true, vec![]).await;
 
 		// Send gossip topology.
 		send_new_topology(&mut overseer, state.make_dummy_topology()).await;
@@ -2570,15 +2460,7 @@ fn should_delay_before_retrying_dropped_requests() {
 			send_peer_view_change(&mut overseer, peer_e.clone(), view![relay_parent]).await;
 		}
 
-		activate_leaf(&mut overseer, &test_leaf, &state, true).await;
-
-		answer_expected_hypothetical_depth_request(
-			&mut overseer,
-			vec![],
-			Some(relay_parent),
-			false,
-		)
-		.await;
+		activate_leaf(&mut overseer, &test_leaf, &state, true, vec![]).await;
 
 		// Send gossip topology.
 		send_new_topology(&mut overseer, state.make_dummy_topology()).await;

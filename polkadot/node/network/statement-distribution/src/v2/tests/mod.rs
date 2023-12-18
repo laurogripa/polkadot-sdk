@@ -480,9 +480,7 @@ async fn setup_test_and_connect_peers(
 		}
 	}
 
-	activate_leaf(overseer, &test_leaf, &state, true).await;
-
-	answer_expected_hypothetical_depth_request(overseer, vec![], Some(relay_parent), false).await;
+	activate_leaf(overseer, &test_leaf, &state, true, vec![]).await;
 
 	// Send gossip topology.
 	send_new_topology(overseer, state.make_dummy_topology()).await;
@@ -505,6 +503,7 @@ async fn activate_leaf(
 	leaf: &TestLeaf,
 	test_state: &TestState,
 	is_new_session: bool,
+	hypothetical_frontier: Vec<(HypotheticalCandidate, FragmentTreeMembership)>,
 ) {
 	let activated = new_leaf(leaf.hash, leaf.number);
 
@@ -514,7 +513,14 @@ async fn activate_leaf(
 		))))
 		.await;
 
-	handle_leaf_activation(virtual_overseer, leaf, test_state, is_new_session).await;
+	handle_leaf_activation(
+		virtual_overseer,
+		leaf,
+		test_state,
+		is_new_session,
+		hypothetical_frontier,
+	)
+	.await;
 }
 
 async fn handle_leaf_activation(
@@ -522,6 +528,7 @@ async fn handle_leaf_activation(
 	leaf: &TestLeaf,
 	test_state: &TestState,
 	is_new_session: bool,
+	hypothetical_frontier: Vec<(HypotheticalCandidate, FragmentTreeMembership)>,
 ) {
 	let TestLeaf {
 		number,
@@ -572,67 +579,82 @@ async fn handle_leaf_activation(
 		}
 	);
 
-	assert_matches!(
-		virtual_overseer.recv().await,
-		AllMessages::RuntimeApi(
-			RuntimeApiMessage::Request(parent, RuntimeApiRequest::SessionIndexForChild(tx))) if parent == *hash => {
-			tx.send(Ok(*session)).unwrap();
-		}
-	);
-
-	assert_matches!(
-		virtual_overseer.recv().await,
-		AllMessages::RuntimeApi(
-			RuntimeApiMessage::Request(parent, RuntimeApiRequest::AvailabilityCores(tx))) if parent == *hash => {
-			tx.send(Ok(availability_cores.clone())).unwrap();
-		}
-	);
-
-	assert_matches!(
-		virtual_overseer.recv().await,
-		AllMessages::RuntimeApi(
-			RuntimeApiMessage::Request(parent, RuntimeApiRequest::Version(tx))) if parent == *hash => {
-			tx.send(Ok(RuntimeApiRequest::DISABLED_VALIDATORS_RUNTIME_REQUIREMENT)).unwrap();
-		}
-	);
-
-	assert_matches!(
-		virtual_overseer.recv().await,
-		AllMessages::RuntimeApi(
-			RuntimeApiMessage::Request(parent, RuntimeApiRequest::DisabledValidators(tx))) if parent == *hash => {
-			tx.send(Ok(disabled_validators.clone())).unwrap();
-		}
-	);
-
-	let validator_groups = test_state.session_info.validator_groups.to_vec();
-	let group_rotation_info =
-		GroupRotationInfo { session_start_block: 1, group_rotation_frequency: 12, now: 1 };
-	assert_matches!(
-		virtual_overseer.recv().await,
-		AllMessages::RuntimeApi(
-			RuntimeApiMessage::Request(parent, RuntimeApiRequest::ValidatorGroups(tx))) if parent == *hash => {
-			tx.send(Ok((validator_groups, group_rotation_info))).unwrap();
-		}
-	);
-
-	if is_new_session {
-		assert_matches!(
-			virtual_overseer.recv().await,
-			AllMessages::RuntimeApi(
-				RuntimeApiMessage::Request(parent, RuntimeApiRequest::SessionInfo(s, tx))) if parent == *hash && s == *session => {
+	loop {
+		match virtual_overseer.recv().await {
+			AllMessages::RuntimeApi(RuntimeApiMessage::Request(
+				_parent,
+				RuntimeApiRequest::Version(tx),
+			)) => {
+				tx.send(Ok(RuntimeApiRequest::DISABLED_VALIDATORS_RUNTIME_REQUIREMENT)).unwrap();
+			},
+			AllMessages::RuntimeApi(RuntimeApiMessage::Request(
+				parent,
+				RuntimeApiRequest::DisabledValidators(tx),
+			)) if parent == *hash => {
+				tx.send(Ok(disabled_validators.clone())).unwrap();
+			},
+			AllMessages::RuntimeApi(RuntimeApiMessage::Request(
+				_parent,
+				RuntimeApiRequest::DisabledValidators(tx),
+			)) => {
+				tx.send(Ok(Vec::new())).unwrap();
+			},
+			AllMessages::RuntimeApi(RuntimeApiMessage::Request(
+				_parent, // assume all active leaves are in the same session
+				RuntimeApiRequest::SessionIndexForChild(tx),
+			)) => {
+				tx.send(Ok(*session)).unwrap();
+			},
+			AllMessages::RuntimeApi(RuntimeApiMessage::Request(
+				parent,
+				RuntimeApiRequest::SessionInfo(s, tx),
+			)) if parent == *hash && s == *session => {
+				assert!(is_new_session, "only expecting this call in a new session");
 				tx.send(Ok(Some(test_state.session_info.clone()))).unwrap();
-			}
-		);
-
-		assert_matches!(
-			virtual_overseer.recv().await,
+			},
 			AllMessages::RuntimeApi(RuntimeApiMessage::Request(
 				parent,
 				RuntimeApiRequest::MinimumBackingVotes(session_index, tx),
 			)) if parent == *hash && session_index == *session => {
+				assert!(is_new_session, "only expecting this call in a new session");
 				tx.send(Ok(*minimum_backing_votes)).unwrap();
-			}
-		);
+			},
+			AllMessages::RuntimeApi(RuntimeApiMessage::Request(
+				parent,
+				RuntimeApiRequest::AvailabilityCores(tx),
+			)) if parent == *hash => {
+				tx.send(Ok(availability_cores.clone())).unwrap();
+			},
+			AllMessages::RuntimeApi(RuntimeApiMessage::Request(
+				parent,
+				RuntimeApiRequest::ValidatorGroups(tx),
+			)) if parent == *hash => {
+				let validator_groups = test_state.session_info.validator_groups.to_vec();
+				let group_rotation_info = GroupRotationInfo {
+					session_start_block: 1,
+					group_rotation_frequency: 12,
+					now: 1,
+				};
+				tx.send(Ok((validator_groups, group_rotation_info))).unwrap();
+			},
+			AllMessages::ProspectiveParachains(
+				ProspectiveParachainsMessage::GetHypotheticalFrontier(req, tx),
+			) => {
+				assert_eq!(req.fragment_tree_relay_parent, Some(*hash));
+				assert!(!req.backed_in_path_only);
+				for (i, (candidate, _)) in hypothetical_frontier.iter().enumerate() {
+					assert!(
+						req.candidates.iter().any(|c| &c == &candidate),
+						"did not receive request for hypothetical candidate {}",
+						i,
+					);
+				}
+				tx.send(hypothetical_frontier).unwrap();
+				// this is the last expected runtime api call
+				break
+			},
+			msg => panic!("unexpected runtime API call: {msg:?}"),
+		}
 	}
 }
 

@@ -102,15 +102,7 @@ fn backed_candidate_leads_to_advertisement() {
 			send_peer_view_change(&mut overseer, peer_c.clone(), view![relay_parent]).await;
 		}
 
-		activate_leaf(&mut overseer, &test_leaf, &state, true).await;
-
-		answer_expected_hypothetical_depth_request(
-			&mut overseer,
-			vec![],
-			Some(relay_parent),
-			false,
-		)
-		.await;
+		activate_leaf(&mut overseer, &test_leaf, &state, true, vec![]).await;
 
 		// Send gossip topology.
 		send_new_topology(&mut overseer, state.make_dummy_topology()).await;
@@ -320,15 +312,7 @@ fn received_advertisement_before_confirmation_leads_to_request() {
 			send_peer_view_change(&mut overseer, peer_d.clone(), view![relay_parent]).await;
 		}
 
-		activate_leaf(&mut overseer, &test_leaf, &state, true).await;
-
-		answer_expected_hypothetical_depth_request(
-			&mut overseer,
-			vec![],
-			Some(relay_parent),
-			false,
-		)
-		.await;
+		activate_leaf(&mut overseer, &test_leaf, &state, true, vec![]).await;
 
 		// Send gossip topology.
 		send_new_topology(&mut overseer, state.make_dummy_topology()).await;
@@ -1022,15 +1006,7 @@ fn received_advertisement_after_confirmation_before_backing() {
 			send_peer_view_change(&mut overseer, peer_e.clone(), view![relay_parent]).await;
 		}
 
-		activate_leaf(&mut overseer, &test_leaf, &state, true).await;
-
-		answer_expected_hypothetical_depth_request(
-			&mut overseer,
-			vec![],
-			Some(relay_parent),
-			false,
-		)
-		.await;
+		activate_leaf(&mut overseer, &test_leaf, &state, true, vec![]).await;
 
 		// Send gossip topology.
 		send_new_topology(&mut overseer, state.make_dummy_topology()).await;
@@ -1208,15 +1184,7 @@ fn additional_statements_are_shared_after_manifest_exchange() {
 			send_peer_view_change(&mut overseer, peer_e.clone(), view![relay_parent]).await;
 		}
 
-		activate_leaf(&mut overseer, &test_leaf, &state, true).await;
-
-		answer_expected_hypothetical_depth_request(
-			&mut overseer,
-			vec![],
-			Some(relay_parent),
-			false,
-		)
-		.await;
+		activate_leaf(&mut overseer, &test_leaf, &state, true, vec![]).await;
 
 		// Send gossip topology.
 		send_new_topology(&mut overseer, state.make_dummy_topology()).await;
@@ -1514,17 +1482,8 @@ fn advertisement_sent_when_peer_enters_relay_parent_view() {
 			send_peer_view_change(&mut overseer, peer_a.clone(), view![relay_parent]).await;
 		}
 
-		activate_leaf(&mut overseer, &test_leaf, &state, true).await;
+		activate_leaf(&mut overseer, &test_leaf, &state, true, vec![]).await;
 
-		answer_expected_hypothetical_depth_request(
-			&mut overseer,
-			vec![],
-			Some(relay_parent),
-			false,
-		)
-		.await;
-
-		// Send gossip topology.
 		send_new_topology(&mut overseer, state.make_dummy_topology()).await;
 
 		// Confirm the candidate locally so that we don't send out requests.
@@ -1737,17 +1696,8 @@ fn advertisement_not_re_sent_when_peer_re_enters_view() {
 			send_peer_view_change(&mut overseer, peer_c.clone(), view![relay_parent]).await;
 		}
 
-		activate_leaf(&mut overseer, &test_leaf, &state, true).await;
+		activate_leaf(&mut overseer, &test_leaf, &state, true, vec![]).await;
 
-		answer_expected_hypothetical_depth_request(
-			&mut overseer,
-			vec![],
-			Some(relay_parent),
-			false,
-		)
-		.await;
-
-		// Send gossip topology.
 		send_new_topology(&mut overseer, state.make_dummy_topology()).await;
 
 		// Confirm the candidate locally so that we don't send out requests.
@@ -1949,17 +1899,8 @@ fn grid_statements_imported_to_backing() {
 			send_peer_view_change(&mut overseer, peer_e.clone(), view![relay_parent]).await;
 		}
 
-		activate_leaf(&mut overseer, &test_leaf, &state, true).await;
+		activate_leaf(&mut overseer, &test_leaf, &state, true, vec![]).await;
 
-		answer_expected_hypothetical_depth_request(
-			&mut overseer,
-			vec![],
-			Some(relay_parent),
-			false,
-		)
-		.await;
-
-		// Send gossip topology.
 		send_new_topology(&mut overseer, state.make_dummy_topology()).await;
 
 		// Receive an advertisement from C.
@@ -2165,17 +2106,8 @@ fn advertisements_rejected_from_incorrect_peers() {
 			send_peer_view_change(&mut overseer, peer_c.clone(), view![relay_parent]).await;
 		}
 
-		activate_leaf(&mut overseer, &test_leaf, &state, true).await;
+		activate_leaf(&mut overseer, &test_leaf, &state, true, vec![]).await;
 
-		answer_expected_hypothetical_depth_request(
-			&mut overseer,
-			vec![],
-			Some(relay_parent),
-			false,
-		)
-		.await;
-
-		// Send gossip topology.
 		send_new_topology(&mut overseer, state.make_dummy_topology()).await;
 
 		let manifest = BackedCandidateManifest {
@@ -2289,17 +2221,8 @@ fn manifest_rejected_with_unknown_relay_parent() {
 			send_peer_view_change(&mut overseer, peer_c.clone(), view![relay_parent]).await;
 		}
 
-		activate_leaf(&mut overseer, &test_leaf, &state, true).await;
+		activate_leaf(&mut overseer, &test_leaf, &state, true, vec![]).await;
 
-		answer_expected_hypothetical_depth_request(
-			&mut overseer,
-			vec![],
-			Some(relay_parent),
-			false,
-		)
-		.await;
-
-		// Send gossip topology.
 		send_new_topology(&mut overseer, state.make_dummy_topology()).await;
 
 		let manifest = BackedCandidateManifest {
@@ -2391,17 +2314,8 @@ fn manifest_rejected_when_not_a_validator() {
 			send_peer_view_change(&mut overseer, peer_c.clone(), view![relay_parent]).await;
 		}
 
-		activate_leaf(&mut overseer, &test_leaf, &state, true).await;
+		activate_leaf(&mut overseer, &test_leaf, &state, true, vec![]).await;
 
-		answer_expected_hypothetical_depth_request(
-			&mut overseer,
-			vec![],
-			Some(relay_parent),
-			false,
-		)
-		.await;
-
-		// Send gossip topology.
 		send_new_topology(&mut overseer, state.make_dummy_topology()).await;
 
 		let manifest = BackedCandidateManifest {
@@ -2498,17 +2412,8 @@ fn manifest_rejected_when_group_does_not_match_para() {
 			send_peer_view_change(&mut overseer, peer_c.clone(), view![relay_parent]).await;
 		}
 
-		activate_leaf(&mut overseer, &test_leaf, &state, true).await;
+		activate_leaf(&mut overseer, &test_leaf, &state, true, vec![]).await;
 
-		answer_expected_hypothetical_depth_request(
-			&mut overseer,
-			vec![],
-			Some(relay_parent),
-			false,
-		)
-		.await;
-
-		// Send gossip topology.
 		send_new_topology(&mut overseer, state.make_dummy_topology()).await;
 
 		let manifest = BackedCandidateManifest {
@@ -2613,17 +2518,8 @@ fn peer_reported_for_advertisement_conflicting_with_confirmed_candidate() {
 			send_peer_view_change(&mut overseer, peer_e.clone(), view![relay_parent]).await;
 		}
 
-		activate_leaf(&mut overseer, &test_leaf, &state, true).await;
+		activate_leaf(&mut overseer, &test_leaf, &state, true, vec![]).await;
 
-		answer_expected_hypothetical_depth_request(
-			&mut overseer,
-			vec![],
-			Some(relay_parent),
-			false,
-		)
-		.await;
-
-		// Send gossip topology.
 		send_new_topology(&mut overseer, state.make_dummy_topology()).await;
 
 		let manifest = BackedCandidateManifest {
@@ -2795,25 +2691,10 @@ fn inactive_local_participates_in_grid() {
 			send_peer_view_change(&mut overseer, peer_a.clone(), view![relay_parent]).await;
 		}
 
-		activate_leaf(&mut overseer, &dummy_leaf, &state, true).await;
-		answer_expected_hypothetical_depth_request(
-			&mut overseer,
-			vec![],
-			Some(dummy_relay_parent),
-			false,
-		)
-		.await;
-
+		activate_leaf(&mut overseer, &dummy_leaf, &state, true, vec![]).await;
 		// Send gossip topology.
 		send_new_topology(&mut overseer, state.make_dummy_topology()).await;
-		activate_leaf(&mut overseer, &test_leaf, &state, false).await;
-		answer_expected_hypothetical_depth_request(
-			&mut overseer,
-			vec![],
-			Some(relay_parent),
-			false,
-		)
-		.await;
+		activate_leaf(&mut overseer, &test_leaf, &state, false, vec![]).await;
 
 		// Receive an advertisement from A.
 		let manifest = BackedCandidateManifest {
