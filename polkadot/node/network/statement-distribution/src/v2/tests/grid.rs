@@ -2651,7 +2651,6 @@ fn inactive_local_participates_in_grid() {
 		async_backing_params: None,
 	};
 
-	let dummy_relay_parent = Hash::repeat_byte(2);
 	let relay_parent = Hash::repeat_byte(1);
 	let peer_a = PeerId::random();
 

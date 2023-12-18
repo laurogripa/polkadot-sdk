@@ -694,16 +694,14 @@ async fn handle_sent_request(
 async fn answer_expected_hypothetical_depth_request(
 	virtual_overseer: &mut VirtualOverseer,
 	responses: Vec<(HypotheticalCandidate, FragmentTreeMembership)>,
-	expected_leaf_hash: Option<Hash>,
-	expected_backed_in_path_only: bool,
 ) {
 	assert_matches!(
 		virtual_overseer.recv().await,
 		AllMessages::ProspectiveParachains(
 			ProspectiveParachainsMessage::GetHypotheticalFrontier(req, tx)
 		) => {
-			assert_eq!(req.fragment_tree_relay_parent, expected_leaf_hash);
-			assert_eq!(req.backed_in_path_only, expected_backed_in_path_only);
+			assert_eq!(req.fragment_tree_relay_parent, None);
+			assert!(!req.backed_in_path_only);
 			for (i, (candidate, _)) in responses.iter().enumerate() {
 				assert!(
 					req.candidates.iter().any(|c| &c == &candidate),

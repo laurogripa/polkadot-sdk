@@ -168,7 +168,7 @@ fn cluster_peer_allowed_to_send_incomplete_statements() {
 			);
 		}
 
-		answer_expected_hypothetical_depth_request(&mut overseer, vec![], None, false).await;
+		answer_expected_hypothetical_depth_request(&mut overseer, vec![]).await;
 
 		overseer
 	});
@@ -338,7 +338,7 @@ fn peer_reported_for_providing_statements_meant_to_be_masked_out() {
 					if p == peer_c && r == BENEFIT_VALID_RESPONSE.into()
 			);
 
-			answer_expected_hypothetical_depth_request(&mut overseer, vec![], None, false).await;
+			answer_expected_hypothetical_depth_request(&mut overseer, vec![]).await;
 		}
 
 		// Peer C advertises candidate 2.
@@ -410,7 +410,7 @@ fn peer_reported_for_providing_statements_meant_to_be_masked_out() {
 					if p == peer_c && r == BENEFIT_VALID_RESPONSE.into()
 			);
 
-			answer_expected_hypothetical_depth_request(&mut overseer, vec![], None, false).await;
+			answer_expected_hypothetical_depth_request(&mut overseer, vec![]).await;
 		}
 
 		// Peer C sends an announcement for candidate 3. Should hit seconding limit for validator 1.
@@ -633,7 +633,7 @@ fn peer_reported_for_not_enough_statements() {
 					if p == peer_c && r == BENEFIT_VALID_RESPONSE.into()
 			);
 
-			answer_expected_hypothetical_depth_request(&mut overseer, vec![], None, false).await;
+			answer_expected_hypothetical_depth_request(&mut overseer, vec![]).await;
 		}
 
 		overseer
@@ -788,7 +788,7 @@ fn peer_reported_for_duplicate_statements() {
 			);
 		}
 
-		answer_expected_hypothetical_depth_request(&mut overseer, vec![], None, false).await;
+		answer_expected_hypothetical_depth_request(&mut overseer, vec![]).await;
 
 		overseer
 	});
@@ -918,7 +918,7 @@ fn peer_reported_for_providing_statements_with_invalid_signatures() {
 					if p == peer_a && r == BENEFIT_VALID_RESPONSE.into() => { }
 			);
 
-			answer_expected_hypothetical_depth_request(&mut overseer, vec![], None, false).await;
+			answer_expected_hypothetical_depth_request(&mut overseer, vec![]).await;
 		}
 
 		overseer
@@ -1048,7 +1048,7 @@ fn peer_reported_for_providing_statements_with_wrong_validator_id() {
 					if p == peer_a && r == BENEFIT_VALID_RESPONSE.into() => { }
 			);
 
-			answer_expected_hypothetical_depth_request(&mut overseer, vec![], None, false).await;
+			answer_expected_hypothetical_depth_request(&mut overseer, vec![]).await;
 		}
 
 		overseer
@@ -1214,7 +1214,7 @@ fn disabled_validators_added_to_unwanted_mask() {
 					assert_eq!(statement, seconded_b);
 				}
 			);
-			answer_expected_hypothetical_depth_request(&mut overseer, vec![], None, false).await;
+			answer_expected_hypothetical_depth_request(&mut overseer, vec![]).await;
 		}
 
 		overseer
@@ -1371,7 +1371,7 @@ fn when_validator_disabled_after_sending_the_request() {
 					assert_eq!(statement, seconded_b);
 				}
 			);
-			answer_expected_hypothetical_depth_request(&mut overseer, vec![], None, false).await;
+			answer_expected_hypothetical_depth_request(&mut overseer, vec![]).await;
 		}
 
 		overseer
@@ -1474,7 +1474,7 @@ fn no_response_for_grid_request_not_meeting_quorum() {
 				AllMessages::NetworkBridgeTx(NetworkBridgeTxMessage::SendValidationMessage(peers, _)) if peers == vec![peer_a]
 			);
 
-			answer_expected_hypothetical_depth_request(&mut overseer, vec![], None, false).await;
+			answer_expected_hypothetical_depth_request(&mut overseer, vec![]).await;
 		}
 
 		// Send enough statements to make candidate backable, make sure announcements are sent.
@@ -1571,7 +1571,7 @@ fn no_response_for_grid_request_not_meeting_quorum() {
 				}
 			);
 
-			answer_expected_hypothetical_depth_request(&mut overseer, vec![], None, false).await;
+			answer_expected_hypothetical_depth_request(&mut overseer, vec![]).await;
 		}
 
 		let mask = StatementFilter {
@@ -1719,7 +1719,7 @@ fn disabling_works_from_the_latest_state_not_relay_parent() {
 					if p == peer_disabled && r == BENEFIT_VALID_RESPONSE.into() => { }
 			);
 
-			answer_expected_hypothetical_depth_request(&mut overseer, vec![], None, false).await;
+			answer_expected_hypothetical_depth_request(&mut overseer, vec![]).await;
 		}
 
 		activate_leaf(&mut overseer, &leaf_2, &state, false, vec![]).await;
@@ -1861,7 +1861,7 @@ fn local_node_sanity_checks_incoming_requests() {
 				}
 			);
 
-			answer_expected_hypothetical_depth_request(&mut overseer, vec![], None, false).await;
+			answer_expected_hypothetical_depth_request(&mut overseer, vec![]).await;
 		}
 
 		// Should drop requests from unknown peers.
@@ -2035,7 +2035,7 @@ fn local_node_checks_that_peer_can_request_before_responding() {
 			}
 		);
 
-		answer_expected_hypothetical_depth_request(&mut overseer, vec![], None, false).await;
+		answer_expected_hypothetical_depth_request(&mut overseer, vec![]).await;
 
 		// Local node should respond to requests from peers in the same group
 		// which appear to not have already seen the candidate
@@ -2247,7 +2247,7 @@ fn local_node_respects_statement_mask() {
 				AllMessages::NetworkBridgeTx(NetworkBridgeTxMessage::SendValidationMessage(peers, _)) if peers == vec![peer_a]
 			);
 
-			answer_expected_hypothetical_depth_request(&mut overseer, vec![], None, false).await;
+			answer_expected_hypothetical_depth_request(&mut overseer, vec![]).await;
 		}
 
 		// Send enough statements to make candidate backable, make sure announcements are sent.
@@ -2346,7 +2346,7 @@ fn local_node_respects_statement_mask() {
 				}
 			);
 
-			answer_expected_hypothetical_depth_request(&mut overseer, vec![], None, false).await;
+			answer_expected_hypothetical_depth_request(&mut overseer, vec![]).await;
 		}
 
 		// `1` indicates statements NOT to request.
@@ -2599,7 +2599,7 @@ fn should_delay_before_retrying_dropped_requests() {
 					if p == peer_c && r == BENEFIT_VALID_RESPONSE.into()
 			);
 
-			answer_expected_hypothetical_depth_request(&mut overseer, vec![], None, false).await;
+			answer_expected_hypothetical_depth_request(&mut overseer, vec![]).await;
 		}
 
 		// Sleep for the given amount of time. This should reset the delay for the first candidate.
@@ -2666,7 +2666,7 @@ fn should_delay_before_retrying_dropped_requests() {
 					if p == peer_c && r == BENEFIT_VALID_RESPONSE.into()
 			);
 
-			answer_expected_hypothetical_depth_request(&mut overseer, vec![], None, false).await;
+			answer_expected_hypothetical_depth_request(&mut overseer, vec![]).await;
 		}
 
 		overseer

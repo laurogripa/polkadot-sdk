@@ -112,7 +112,7 @@ fn share_seconded_circulated_to_cluster() {
 
 		// sharing a `Seconded` message confirms a candidate, which leads to new
 		// fragment tree updates.
-		answer_expected_hypothetical_depth_request(&mut overseer, vec![], None, false).await;
+		answer_expected_hypothetical_depth_request(&mut overseer, vec![]).await;
 
 		overseer
 	});
@@ -449,7 +449,7 @@ fn seconded_statement_leads_to_request() {
 				if p == peer_a && r == BENEFIT_VALID_RESPONSE.into() => { }
 		);
 
-		answer_expected_hypothetical_depth_request(&mut overseer, vec![], None, false).await;
+		answer_expected_hypothetical_depth_request(&mut overseer, vec![]).await;
 
 		overseer
 	});
@@ -523,7 +523,7 @@ fn cluster_statements_shared_seconded_first() {
 			.await;
 
 		// result of new confirmed candidate.
-		answer_expected_hypothetical_depth_request(&mut overseer, vec![], None, false).await;
+		answer_expected_hypothetical_depth_request(&mut overseer, vec![]).await;
 
 		overseer
 			.send(FromOrchestra::Communication {
@@ -658,7 +658,7 @@ fn cluster_accounts_for_implicit_view() {
 
 		// sharing a `Seconded` message confirms a candidate, which leads to new
 		// fragment tree updates.
-		answer_expected_hypothetical_depth_request(&mut overseer, vec![], None, false).await;
+		answer_expected_hypothetical_depth_request(&mut overseer, vec![]).await;
 
 		// activate new leaf, which has relay-parent in implicit view.
 		let next_relay_parent = Hash::repeat_byte(2);
@@ -805,8 +805,6 @@ fn cluster_messages_imported_after_confirmed_candidate_importable_check() {
 				},
 				vec![(relay_parent, vec![0])],
 			)],
-			None,
-			false,
 		)
 		.await;
 
@@ -920,7 +918,7 @@ fn cluster_messages_imported_after_new_leaf_importable_check() {
 			);
 		}
 
-		answer_expected_hypothetical_depth_request(&mut overseer, vec![], None, false).await;
+		answer_expected_hypothetical_depth_request(&mut overseer, vec![]).await;
 
 		let next_relay_parent = Hash::repeat_byte(2);
 		let mut next_test_leaf = state.make_dummy_leaf(next_relay_parent);
@@ -1055,7 +1053,7 @@ fn ensure_seconding_limit_is_respected() {
 				AllMessages::NetworkBridgeTx(NetworkBridgeTxMessage::SendValidationMessage(peers, _)) if peers == vec![peer_a]
 			);
 
-			answer_expected_hypothetical_depth_request(&mut overseer, vec![], None, false).await;
+			answer_expected_hypothetical_depth_request(&mut overseer, vec![]).await;
 		}
 
 		// Candidate 2.
@@ -1081,7 +1079,7 @@ fn ensure_seconding_limit_is_respected() {
 				AllMessages::NetworkBridgeTx(NetworkBridgeTxMessage::SendValidationMessage(peers, _)) if peers == vec![peer_a]
 			);
 
-			answer_expected_hypothetical_depth_request(&mut overseer, vec![], None, false).await;
+			answer_expected_hypothetical_depth_request(&mut overseer, vec![]).await;
 		}
 
 		// Send first statement from peer A.
