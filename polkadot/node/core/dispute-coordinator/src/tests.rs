@@ -2639,6 +2639,8 @@ fn participation_with_onchain_disabling() {
 			// we should not participate due to disabled indices on chain
 			assert!(virtual_overseer.recv().timeout(TEST_TIMEOUT).await.is_none());
 
+			// Scenario 2: confirmed dispute with disabled validator
+
 			// now import enough votes for dispute confirmation
 			let mut statements = Vec::new();
 			for i in vec![3, 4] {
@@ -2655,7 +2657,6 @@ fn participation_with_onchain_disabling() {
 			let (pending_confirmation, confirmation_rx) = oneshot::channel();
 			let pending_confirmation = Some(pending_confirmation);
 
-			// Scenario 2: confirmed dispute with disabled validator
 			virtual_overseer
 				.send(FromOrchestra::Communication {
 					msg: DisputeCoordinatorMessage::ImportStatements {
